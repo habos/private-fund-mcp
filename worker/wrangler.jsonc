@@ -9,8 +9,8 @@
     {
       "binding": "DB",
       "database_name": "private-fund-mcp",
-      // Set by `npx wrangler d1 create private-fund-mcp` on Harry's machine (prompt 3).
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      // Created with `npx wrangler d1 create private-fund-mcp` (prompt 3).
+      "database_id": "3000b8b6-a7cf-44e9-950a-b735b1ad502b"
     }
   ]
 }
