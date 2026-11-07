@@ -249,7 +249,7 @@ def build_handcheck(db_path: Path, seed: int, out: Path) -> list[dict]:
         for pfid, name, crd, aname, gav, fno, sold, latest in pick:
             if latest:
                 cik, acc = latest.split("|")
-                edgar = filing_url(cik, acc)
+                edgar = filing_url(cik, acc) + "xslFormDX01/primary_doc.xml"  # the form rendered as a page
             elif fno:
                 edgar = EDGAR_FILENUM_PAGE.format(file_no=fno)
             else:
