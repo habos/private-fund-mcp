@@ -1,0 +1,10 @@
+ACCESSIONNUMBER	RELATEDPERSON_SEQ_KEY	FIRSTNAME	MIDDLENAME	LASTNAME	STREET1	STREET2	CITY	STATEORCOUNTRY	STATEORCOUNTRYDESCRIPTION	ZIPCODE	RELATIONSHIP_1	RELATIONSHIP_2	RELATIONSHIP_3	RELATIONSHIPCLARIFICATION
+0000892251-24-000069	101	Scott		Jacobs	1775 Mentor Ave	Suite 203	Norwood	OH	OHIO	45212	Executive Officer	Director		Executive Director of the Issuer's Manager
+0001315863-24-000565	104	Peter		O'Leary	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Director			Mr. O'Leary is a director of the general partner of the Issuer.
+0001315863-24-000565	101	N/A		4010 Royalty Fund GP, LLC	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Promoter			4010 Royalty Fund GP, LLC is the general partner of the Issuer.
+0001315863-24-000565	103	Dermot		Hanley	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Director			Mr. Hanley is a director of the general partner of the Issuer.
+0001315863-24-000565	102	Jeffrey		Brotman	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Director			Mr. Brotman is a director of the general partner of the Issuer.
+0001315863-24-000564	101	N/A		4010 Royalty Fund GP, LLC	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Promoter			4010 Royalty Fund GP, LLC is the general partner of the Issuer.
+0001315863-24-000564	104	Peter		O'Leary	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Director			Mr. O'Leary is a director of the general partner of the Issuer.
+0001315863-24-000564	102	Jeffrey		Brotman	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Director			Mr. Brotman is a director of the general partner of the Issuer.
+0001315863-24-000564	103	Dermot		Hanley	40 10th Avenue	Floor 3	New York	NY	NEW YORK	10014	Director			Mr. Hanley is a director of the general partner of the Issuer.

@@ -7,7 +7,7 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 **Ships by Sunday night**
 
 - Four read-only MCP tools: `resolve_manager`, `list_funds`, `fund_history`, `new_launches`.
-- Data: VC and PE funds only; Form D history for the last 3 years.
+- Data: VC and PE funds only; full Form D history (every SEC Form D data set, 2008 on; decided 2026-11-07).
 - A public Worker URL on `workers.dev`, connectable from Claude as a custom connector.
 - A nightly GitHub Action that adds new Form D filings.
 - 20 hand-checked funds (target: 19/20 correct) and 10 golden questions.
@@ -15,7 +15,7 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 **Deferred (not this weekend)**
 
 - `manager_timeline`, `find_people` tools.
-- Hedge, real estate and other fund types; Form D history beyond 3 years.
+- Hedge, real estate and other fund types.
 - Full 7.B.(2) co-adviser handling (just avoid double counting).
 - Write-up, demo video, Smithery/Glama listing.
 
@@ -33,7 +33,7 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 
 - **Advisers:** every adviser (RIA or ERA) whose latest Form ADV reports at least one in-scope fund in 7.B.(1).
 - **Funds:** 7.B.(1) rows from each adviser's latest filing where fund type is venture capital or private equity (Schedule D 7.B.(1) question 10; confirm exact values in the file).
-- **Form D offerings:** filings (D and D/A) in the last 3 years whose Form D file number matches an in-scope fund, **plus** first-time Form D notices from pooled investment funds whose Form D fund type is venture capital or private equity, in the last 3 years, even if unmatched (needed by `new_launches`).
+- **Form D offerings:** filings (D and D/A) since 2008 (all Form D data sets) whose Form D file number matches an in-scope fund, **plus** first-time Form D notices from pooled investment funds whose Form D fund type is venture capital or private equity, since 2008, even if unmatched (needed by `new_launches`).
 - **Form D people:** related persons for in-scope Form D filings only, stored as JSON in `formd_offerings.related_persons` (decided 2026-11-07 to fit the D1 write budget).
 - Before building, Prompt 1 reports estimated row counts for each table. If the total (plus one extra row per index) exceeds ~80,000 rows, split the initial D1 load across nights (see section 6).
 
@@ -69,6 +69,13 @@ CREATE TABLE funds (
 CREATE INDEX idx_funds_adviser ON funds(adviser_crd);
 CREATE INDEX idx_funds_file_no ON funds(form_d_file_no);
 
+CREATE TABLE fund_file_nos (            -- extra Form D file numbers (added 2026-11-07)
+  pfid                TEXT NOT NULL REFERENCES funds(pfid),
+  file_no             TEXT NOT NULL,      -- '021-…', never equal to funds.form_d_file_no
+  PRIMARY KEY (pfid, file_no)
+);
+CREATE INDEX idx_fund_file_nos_file_no ON fund_file_nos(file_no);
+
 CREATE TABLE formd_offerings (
   accession_no        TEXT PRIMARY KEY,
   file_no             TEXT,               -- '021-…'
@@ -97,7 +104,7 @@ Keep indexes to this list: each index adds a written row per insert.
 
 ## 5. Matching rules
 
-- Fund ↔ Form D: `funds.form_d_file_no = formd_offerings.file_no`. If a fund has no file number, it has no Form D history; say so.
+- Fund ↔ Form D: `formd_offerings.file_no` equals `funds.form_d_file_no` or any of the fund's `fund_file_nos.file_no` (about 1,300 funds list several numbers). If a fund has no file number, it has no Form D history; say so. If it has numbers but no filing in the window, say "no Form D filed since {form_d_since}".
 - Fund ↔ adviser: from 7.B.(1) only. Exclude 7.B.(2) rows from `funds` so each fund is counted once.
 - Feeders: keep them, but flag `is_feeder` and never sum a master and its feeders together.
 - **New launch** = a Form D with `is_amendment = 0` and `is_fund = 1` filed in the window. Flag (don't drop) likely SPVs: names containing "SPV", "a series of", or "Series" followed by a number. Resolve to an adviser via file number when possible; otherwise return `manager: null` with a note.

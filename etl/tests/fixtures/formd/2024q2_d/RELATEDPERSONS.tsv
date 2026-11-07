@@ -1,0 +1,7 @@
+ACCESSIONNUMBER	RELATEDPERSON_SEQ_KEY	FIRSTNAME	MIDDLENAME	LASTNAME	STREET1	STREET2	CITY	STATEORCOUNTRY	STATEORCOUNTRYDESCRIPTION	ZIPCODE	RELATIONSHIP_1	RELATIONSHIP_2	RELATIONSHIP_3	RELATIONSHIPCLARIFICATION
+0002027473-24-000001	101	Richard		de Silva	400 South El Camino Real	Suite 1100	San Mateo	CA	CALIFORNIA	94402	Promoter			Managing Partner
+0002027473-24-000001	103	Marie Claire		Hickey	400 South El Camino Real	Suite 1100	San Mateo	CA	CALIFORNIA	94402	Director			Managing Director
+0002027473-24-000001	102	N/A		Lateral Investment Management, LLC	400 South El Camino Real	Suite 1100	San Mateo	CA	CALIFORNIA	94402	Promoter			Management Company
+0000898432-24-000315	103	Ana Carolina		Mexia Ponce	c/o Nido Ventures Fund I GP LP	9001 Santa Monica Blvd., Apt 206	West Hollywood	CA	CALIFORNIA	90069	Executive Officer			Managing Partner of the General Partner of the Issuer
+0000898432-24-000315	101	N/A		Nido Ventures Fund I GP LP	9001 Santa Monica Blvd.	Apt. 206	West Hollywood	CA	CALIFORNIA	90069	Promoter			General Partner of the Issuer
+0000898432-24-000315	102	Maria Adriana		Gutierrez Penaloza	c/o Nido Ventures Fund I GP LP	9001 Santa Monica Blvd., Apt 206	West Hollywood	CA	CALIFORNIA	90069	Executive Officer			Managing Partner of the General Partner of the Issuer

@@ -103,9 +103,22 @@ Fix used in exploration (`csv_check.py`): parse each line strictly; only when th
 
 **MISSING:** nothing in the SPEC §4 schema is missing from the files. Caveats: `raum_usd` is NULL for ERAs by design; `form_d_file_no` and `auditor` are one-to-many in the source.
 
-## 4. Open questions for Harry
+## 4. Rules used by `etl.transform` (Prompt 2)
+
+- **CSV dialect is explicit** (`delim=','`, `quote='"'`, `escape='"'`, strict). On small files DuckDB's sniffer missed the quoting and read each line as a single column *without an error*; found while cutting test fixtures.
+- **Form D file number canonical form:** remove all whitespace, uppercase, require `21-` (any leading zeros) + digits, drop leading zeros of the number part, re-prefix `021-`; a Form D legacy suffix like `-3N` is kept. `FORMDSUBMISSION.FILE_NUM` is right-padded with spaces to 25 chars. Neither source actually has leading zeros, so the rule mainly trims padding. Implemented twice (Python `normalize_file_no`, DuckDB macro `norm_file_no`); a test checks they agree on every fixture value.
+- **Placeholder file numbers** (one repeated digit, ≥ 3 long: `021-999999`, `021-9999999999`, `021-99999`, `021-111111`) → NULL. ~600 funds use them; none match a Form D today, but a future filing could.
+- **Odd-length ADV numbers are kept as filed.** 7–10 digit numbers (≈ 2,500 funds) never match exactly; ~27% of the 8-digit ones match a real number if cut to 6 digits (`021-38805701` → `021-388057`), but that is a guess, so we don't do it (CLAUDE rule 5). Unverified whether IARD stores a suffix.
+- **Several file numbers per fund:** 1,320 kept funds list more than one. `funds.form_d_file_no` holds the number with the newest Form D in the window (else the smallest); the other 2,086 go to `fund_file_nos(pfid, file_no)` (schema change approved by Harry 2026-11-07). Window filings under any listed number are loaded, which adds 658 filings for 335 funds.
+- **Advisers with `fund_count = 0`:** 69 advisers' latest ADV reports VC/PE funds whose PFIDs are reported by a newer filing of another adviser. They stay in `advisers` (SPEC §3) with `fund_count = 0`.
+- **Older Form D data sets differ:** through 2020Q2, `FILING_DATE` is `YYYY-MM-DD hh:mm:ss` instead of `DD-MON-YYYY`; both are parsed, anything else fails the build. 22 primary issuers in 2020–2022 have an empty `ENTITYNAME`; they get `[issuer name missing in SEC data set]`. Found while measuring a 10-year window (2016-11-07): 120,965 offerings, 85.9% of funds with a number matched, ~629k D1 writes, 84.8 MB.
+- **Window:** full Form D history: every quarterly data set (2008Q1 – latest, 75 ZIPs, earliest filing 2008-05-30). `--since` defaults to 2008-01-01 and is stored in `meta.form_d_since` (Harry chose full history 2026-11-07; it was 3 years).
+- **`related_persons`** JSON: `[{"name", "relationship", "city", "state"}]`, ordered by `RELATEDPERSON_SEQ_KEY`; `[]` when none (no filing in scope has none).
+- **Join match rate** is 94.4% of funds with a number (full history). All 100 sampled unmatched numbers do not exist on EDGAR, so the rest are ADV typos. With a 3-year window it was 29%. See `reports/join_report.md`.
+
+## 5. Open questions for Harry
 1. Initial load is far above the 80,000 writes/day budget. See `reports/row_estimates.md` for options.
-2. Funds with several Form D file numbers (2,087 funds, ~3%). Options: keep the first in `funds.form_d_file_no` (simple, loses some history), or add a small `fund_file_nos(pfid, file_no)` table (schema change).
+2. ~~Funds with several Form D file numbers~~ Decided 2026-11-07: added the `fund_file_nos` table so no filings are dropped.
 3. Fund type "Other Private Fund" with free text saying VC/PE: ignore in v1 (current plan).
-4. New launches: all pooled investment funds (spec) or only VC/PE Form D fund types?
+4. ~~New launches: all pooled investment funds or only VC/PE?~~ Decided 2026-11-07: VC/PE only.
 5. Adviser `name`: legal name (`1A`) or primary business name (`1B1`)? They differ for some firms. Current plan: `1A`.
