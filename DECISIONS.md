@@ -12,3 +12,10 @@ One line per decision: date — decision — why.
 - 2026-11-07 — Keep PFID as the full `805-##########` string — that is how every source file spells it.
 - 2026-11-07 — One fund row per PFID, from the newest filing that reports it in 7.B.(1); IA copy wins when a filing appears in both IA and ERA files — 601 PFIDs and 187 filings are duplicated otherwise.
 - 2026-11-07 — Related persons stored as a JSON column on `formd_offerings` (no `formd_people` table); unmatched new launches limited to Form D VC/PE fund types — cuts the initial load from ~834k to ~417k D1 writes (~6 nights). Harry chose this option.
+- 2026-11-07 — Form D file numbers normalized to `021-` + digits without leading zeros (spaces removed, legacy suffix kept); one-repeated-digit placeholders → NULL; 7–10 digit ADV numbers kept as filed, never truncated — join on IDs as filed; truncation would be a guess.
+- 2026-11-07 — One file number per fund: the one with the newest Form D in the window, else the smallest — schema has one column; only 335 funds / 419 offerings are affected.
+- 2026-11-07 — ADV CSVs read with an explicit dialect, never sniffed — the sniffer silently read small files as one column.
+- 2026-11-07 — Form D window = build date minus 3 years (`--since`), stored in `meta.form_d_since` — "last 3 years" stays true on every nightly run.
+- 2026-11-07 — Advisers whose in-scope PFIDs all went to a newer filer stay in `advisers` with `fund_count = 0` (69) — SPEC §3 scopes advisers by their own latest filing.
+- 2026-11-07 — Hand-check sample is stratified: 10 funds with a matched Form D, 10 from the rest (seed 2026) — a plain random draw would leave most amount checks blank (only 22% of funds match).
+- 2026-11-07 — Low match rate (29%) accepted after an EDGAR check: 95 of 100 sampled unmatched numbers have their last Form D before the 3-year window.
