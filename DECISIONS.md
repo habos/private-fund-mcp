@@ -11,3 +11,4 @@ One line per decision: date — decision — why.
 - 2026-11-07 — Repair stray quotes only in ADV CSV lines that fail strict parsing — 58 of 218k 7B1 rows have bare quotes, while other rows are correctly escaped.
 - 2026-11-07 — Keep PFID as the full `805-##########` string — that is how every source file spells it.
 - 2026-11-07 — One fund row per PFID, from the newest filing that reports it in 7.B.(1); IA copy wins when a filing appears in both IA and ERA files — 601 PFIDs and 187 filings are duplicated otherwise.
+- 2026-11-07 — Related persons stored as a JSON column on `formd_offerings` (no `formd_people` table); unmatched new launches limited to Form D VC/PE fund types — cuts the initial load from ~834k to ~417k D1 writes (~6 nights). Harry chose this option.

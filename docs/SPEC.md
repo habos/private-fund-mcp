@@ -33,8 +33,8 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 
 - **Advisers:** every adviser (RIA or ERA) whose latest Form ADV reports at least one in-scope fund in 7.B.(1).
 - **Funds:** 7.B.(1) rows from each adviser's latest filing where fund type is venture capital or private equity (Schedule D 7.B.(1) question 10; confirm exact values in the file).
-- **Form D offerings:** filings (D and D/A) in the last 3 years whose Form D file number matches an in-scope fund, **plus** first-time Form D notices from pooled investment funds in the last 3 years even if unmatched (needed by `new_launches`). Confirm the industry-group field name and value.
-- **Form D people:** related persons for in-scope Form D filings only.
+- **Form D offerings:** filings (D and D/A) in the last 3 years whose Form D file number matches an in-scope fund, **plus** first-time Form D notices from pooled investment funds whose Form D fund type is venture capital or private equity, in the last 3 years, even if unmatched (needed by `new_launches`).
+- **Form D people:** related persons for in-scope Form D filings only, stored as JSON in `formd_offerings.related_persons` (decided 2026-11-07 to fit the D1 write budget).
 - Before building, Prompt 1 reports estimated row counts for each table. If the total (plus one extra row per index) exceeds ~80,000 rows, split the initial D1 load across nights (see section 6).
 
 ## 4. Schema (SQLite, identical in D1)
@@ -84,19 +84,11 @@ CREATE TABLE formd_offerings (
   total_sold_usd      INTEGER,
   investors_count     INTEGER,
   min_investment_usd  INTEGER,
-  state               TEXT
+  state               TEXT,
+  related_persons     TEXT                -- JSON array: [{name, relationship, city, state}]
 );
 CREATE INDEX idx_formd_file_no ON formd_offerings(file_no);
 CREATE INDEX idx_formd_new_funds ON formd_offerings(filing_date) WHERE is_fund = 1 AND is_amendment = 0;
-
-CREATE TABLE formd_people (
-  accession_no        TEXT NOT NULL REFERENCES formd_offerings(accession_no),
-  name                TEXT NOT NULL,
-  relationship        TEXT,               -- executive officer | director | promoter
-  city                TEXT,
-  state               TEXT
-);
-CREATE INDEX idx_people_accession ON formd_people(accession_no);
 
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);  -- as_of dates, data source versions
 ```
