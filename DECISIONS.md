@@ -17,4 +17,4 @@ One line per decision: date — decision — why.
 - 2026-11-07 — ADV CSVs read with an explicit dialect, never sniffed — the sniffer silently read small files as one column.
 - 2026-11-07 — Form D window = full history (all data sets, 2008 on), not 3 years — match rate 29% → 94%, for ~682k vs ~421k initial D1 writes (9 vs 6 nights); nightly cost unchanged. Harry chose this.
 - 2026-11-07 — Advisers whose in-scope PFIDs all went to a newer filer stay in `advisers` with `fund_count = 0` (69) — SPEC §3 scopes advisers by their own latest filing.
-- 2026-11-07 — Hand-check sample is stratified: 10 funds with a matched Form D, 10 from the rest (seed 2026) — a plain random draw would leave most amount checks blank (only 22% of funds match).
+- 2026-11-07 — Hand-check sample is stratified: 10 funds with a matched Form D, 10 from the rest (seed 2026), one per adviser, advisers with ≤ 25 in-scope funds only — a plain random draw would leave many amount checks blank, and IAPD lists 7.B.(1) 100 funds per page with no search, so funds at huge advisers (22k funds) cannot be checked by hand.

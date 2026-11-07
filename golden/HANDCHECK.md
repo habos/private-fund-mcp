@@ -1,6 +1,6 @@
 # Hand-check instructions (`handcheck.csv`)
 
-20 funds picked with seed 2026: 10 that have a Form D in our window, 10 from the rest. About 2 minutes each.
+20 funds picked with seed 2026: 10 that have a Form D in our data, 10 from the rest, each from a different adviser with at most 25 in-scope funds (so the fund is on the first IAPD page). About 2 minutes each.
 
 For each row:
 
