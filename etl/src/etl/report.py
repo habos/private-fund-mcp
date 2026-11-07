@@ -29,6 +29,7 @@ EDGAR_FILENUM_URL = (
 )
 EDGAR_FILENUM_PAGE = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&filenum={file_no}&type=D&owner=include&count=40"
 IAPD_URL = "https://adviserinfo.sec.gov/firm/summary/{crd}"
+HANDCHECK_MAX_FUNDS = 25
 HANDCHECK_COLS = [
     "pfid", "fund_name", "adviser_crd", "adviser_name", "our_gav_usd", "our_form_d_file_no",
     "our_latest_amount_sold_usd", "iapd_url", "edgar_url",
@@ -210,7 +211,12 @@ def build_report(db_path: Path, edgar_sample: int, seed: int) -> str:
 
 
 def build_handcheck(db_path: Path, seed: int, out: Path) -> list[dict]:
-    """20 seeded random funds: 10 with a matched Form D (so amounts get checked), 10 from the rest."""
+    """20 seeded random funds: 10 with a matched Form D (so amounts get checked), 10 from the rest.
+
+    Only advisers with at most HANDCHECK_MAX_FUNDS in-scope funds, one fund per adviser: IAPD shows
+    Schedule D 7.B.(1) 100 funds per page with no search, so a fund at a 20,000-fund adviser
+    can't be found by hand.
+    """
     db = sqlite3.connect(db_path)
     rows = db.execute("""
       SELECT f.pfid, f.name, f.adviser_crd, a.name, f.gross_asset_value_usd, f.form_d_file_no,
@@ -218,11 +224,23 @@ def build_handcheck(db_path: Path, seed: int, out: Path) -> list[dict]:
               ORDER BY o.filing_date DESC, o.accession_no DESC LIMIT 1),
              (SELECT o.cik || '|' || o.accession_no FROM formd_offerings o WHERE o.file_no = f.form_d_file_no
               ORDER BY o.filing_date DESC, o.accession_no DESC LIMIT 1)
-      FROM funds f JOIN advisers a ON a.crd = f.adviser_crd ORDER BY f.pfid""").fetchall()
+      FROM funds f JOIN advisers a ON a.crd = f.adviser_crd
+      WHERE a.fund_count <= ? ORDER BY f.pfid""", (HANDCHECK_MAX_FUNDS,)).fetchall()
     rng = random.Random(seed)
     matched = [r for r in rows if r[7]]
     rest = [r for r in rows if not r[7]]
-    pick = sorted(rng.sample(matched, 10) + rng.sample(rest, 10), key=lambda r: r[0])
+    def one_per_adviser(pool, n, taken):
+        out = []
+        for r in rng.sample(pool, len(pool)):
+            if r[2] not in taken:
+                taken.add(r[2])
+                out.append(r)
+                if len(out) == n:
+                    break
+        return out
+
+    taken: set[str] = set()
+    pick = sorted(one_per_adviser(matched, 10, taken) + one_per_adviser(rest, 10, taken), key=lambda r: r[0])
     out.parent.mkdir(parents=True, exist_ok=True)
     result = []
     with out.open("w", newline="") as fh:
@@ -231,7 +249,7 @@ def build_handcheck(db_path: Path, seed: int, out: Path) -> list[dict]:
         for pfid, name, crd, aname, gav, fno, sold, latest in pick:
             if latest:
                 cik, acc = latest.split("|")
-                edgar = filing_url(cik, acc)
+                edgar = filing_url(cik, acc) + "xslFormDX01/primary_doc.xml"  # the form rendered as a page
             elif fno:
                 edgar = EDGAR_FILENUM_PAGE.format(file_no=fno)
             else:
