@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "private-fund-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "private-fund-mcp",
+      // Created with `npx wrangler d1 create private-fund-mcp` (prompt 3).
+      "database_id": "3000b8b6-a7cf-44e9-950a-b735b1ad502b"
+    }
+  ]
+}
