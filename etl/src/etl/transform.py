@@ -97,10 +97,13 @@ def parse_adv_date(raw: str | None) -> str | None:
 
 
 def parse_formd_date(raw: str | None) -> str | None:
-    """Form D FILING_DATE 'DD-MON-YYYY' (e.g. 29-DEC-2023) -> 'YYYY-MM-DD'."""
+    """Form D FILING_DATE -> 'YYYY-MM-DD'. '29-DEC-2023' (2020Q3 on) or '2019-04-24 06:00:00' (before)."""
     if not raw or not raw.strip():
         return None
-    return dt.datetime.strptime(raw.strip().title(), "%d-%b-%Y").date().isoformat()
+    raw = raw.strip()
+    if raw[:4].isdigit():
+        return dt.datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").date().isoformat()
+    return dt.datetime.strptime(raw.title(), "%d-%b-%Y").date().isoformat()
 
 
 def to_int_usd(raw: str | None) -> int | None:
@@ -255,6 +258,9 @@ def load_formd(con, work_dir: Path) -> None:
 # Transform
 # --------------------------------------------------------------------------------------
 
+# Form D FILING_DATE: 'DD-MON-YYYY' from 2020Q3 on, 'YYYY-MM-DD hh:mm:ss' before. Unparseable
+# dates fail the build (strptime with a list raises) rather than becoming NULL.
+FORMD_DATE_SQL = "strptime({c}, ['%d-%b-%Y', '%Y-%m-%d %H:%M:%S'])::DATE"
 DATE_SQL = "coalesce(try_strptime({c}, '%m/%d/%Y %I:%M:%S %p'), try_strptime({c}, '%m/%d/%Y'))"
 
 
@@ -343,14 +349,14 @@ def build_adv(con) -> None:
 
 
 def build_formd(con, since: str) -> None:
-    con.sql("""
+    con.sql(f"""
     CREATE OR REPLACE TABLE fd_all AS
     SELECT s.ACCESSIONNUMBER accession_no, norm_file_no(s.FILE_NUM) file_no, trim(s.FILE_NUM) file_no_raw,
-           trim(i.CIK) cik, trim(i.ENTITYNAME) issuer_name,
+           trim(i.CIK) cik, coalesce(nullif(trim(i.ENTITYNAME), ''), '[issuer name missing in SEC data set]') issuer_name,
            CASE o.ISAMENDMENT WHEN 'true' THEN 1 ELSE 0 END is_amendment,
            CASE WHEN o.INDUSTRYGROUPTYPE = 'Pooled Investment Fund' THEN 1 ELSE 0 END is_fund,
            nullif(trim(o.INVESTMENTFUNDTYPE), '') fund_type,
-           strptime(s.FILING_DATE, '%d-%b-%Y')::DATE filing_date,
+           {FORMD_DATE_SQL.format(c="s.FILING_DATE")} filing_date,
            CASE WHEN o.YETTOOCCUR = 'true' THEN NULL ELSE try_cast(o.SALE_DATE AS DATE) END first_sale_date,
            o.TOTALOFFERINGAMOUNT total_offering, o.TOTALAMOUNTSOLD total_sold,
            o.TOTALNUMBERALREADYINVESTED investors, o.MINIMUMINVESTMENTACCEPTED min_inv,

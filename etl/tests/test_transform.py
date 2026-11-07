@@ -85,6 +85,10 @@ def test_date_parsing():
     assert T.parse_adv_date("03/31/2026 04:05:06 PM") == "2026-03-31"
     assert T.parse_adv_date("11/06/2025") == "2025-11-06"
     assert T.parse_formd_date("29-DEC-2023") == "2023-12-29"
+    assert T.parse_formd_date("2019-04-24 06:00:00") == "2019-04-24"  # data sets before 2020Q3
+    for raw in ("29-DEC-2023", "2019-04-24 06:00:00"):
+        sql = "SELECT strftime(" + T.FORMD_DATE_SQL.format(c="$1") + ", '%Y-%m-%d')"
+        assert duckdb.connect().sql(sql, params=[raw]).fetchall()[0][0] == T.parse_formd_date(raw)
     assert T.parse_adv_date("") is None and T.parse_formd_date(None) is None
     con = duckdb.connect()
     for raw in ("03/31/2026 04:05:06 PM", "11/06/2025"):
