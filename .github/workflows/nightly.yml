@@ -1,0 +1,70 @@
+# Nightly Form D update: new filings from the EDGAR daily index -> D1, within the free write budget.
+#
+# - Waits for the initial load: until its last chunk (meta) is in D1 there is no meta.as_of_form_d,
+#   and etl.incremental exits without doing anything. The initial load itself runs from the Mac that
+#   holds build/fund.db and build/load_state.json (see README, "Initial load").
+# - Every remote load reads and updates the shared meta.d1_writes ledger, so this job and any load
+#   run by hand on the same UTC day share one 80,000-row budget.
+# - Secrets: SEC_USER_AGENT, CLOUDFLARE_API_TOKEN (Account > D1 > Edit), CLOUDFLARE_ACCOUNT_ID.
+name: nightly
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_days:
+        description: "EDGAR business days to add in this run (bounds SEC requests)"
+        default: "25"
+  schedule:
+    - cron: "30 6 * * *" # 06:30 UTC: EDGAR posts each daily index around 22:00 Eastern
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d1-writes
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          working-directory: etl
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Install wrangler
+        working-directory: worker
+        run: npm ci
+
+      # Filings already downloaded by an earlier (e.g. failed) run are never fetched again.
+      - name: Restore EDGAR download cache
+        uses: actions/cache@v4
+        with:
+          path: data/raw/edgar
+          key: edgar-${{ github.run_id }}
+          restore-keys: edgar-
+
+      - name: Find and parse new Form D filings
+        working-directory: etl
+        run: uv run python -m etl.incremental --remote --max-days "${{ inputs.max_days || '25' }}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Load them into D1 (budget 80,000 rows/day, shared ledger)
+        working-directory: etl
+        run: uv run python -m etl.load --remote --sql-dir ../build/incremental | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Prune old downloads before caching
+        if: always()
+        run: find data/raw/edgar -type f -mtime +45 -delete 2>/dev/null || true
