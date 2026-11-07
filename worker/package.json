@@ -6,12 +6,18 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "seed:local": "wrangler d1 execute private-fund-mcp --local --file=schema.sql && wrangler d1 execute private-fund-mcp --local --file=test/fixtures/seed_etl.sql && wrangler d1 execute private-fund-mcp --local --file=test/fixtures/synthetic.sql"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261021.1",
     "typescript": "5.9.3",
     "vitest": "3.2.7",
     "wrangler": "4.150.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "agents": "0.33.0",
+    "zod": "4.6.7"
   }
 }
