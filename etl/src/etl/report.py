@@ -93,29 +93,39 @@ def build_report(db_path: Path, edgar_sample: int, seed: int) -> str:
     meta = dict(q("SELECT key, value FROM meta"))
     since, as_of_d = meta["form_d_since"], meta["as_of_form_d"]
 
-    counts = {t: one(f"SELECT count(*) FROM {t}") for t in ("advisers", "funds", "formd_offerings", "meta")}
+    tables = ("advisers", "funds", "fund_file_nos", "formd_offerings", "meta")
+    counts = {t: one(f"SELECT count(*) FROM {t}") for t in tables}
+    # every (fund, file number) pair: the main number plus the extras
+    db.execute("""CREATE TEMP VIEW all_nos AS
+                  SELECT pfid, form_d_file_no file_no FROM funds WHERE form_d_file_no IS NOT NULL
+                  UNION SELECT pfid, file_no FROM fund_file_nos""")
+    db.execute("""CREATE TEMP TABLE fund_match AS
+                  SELECT f.pfid, f.fund_type, f.form_d_file_no,
+                         EXISTS (SELECT 1 FROM all_nos n JOIN formd_offerings o ON o.file_no = n.file_no
+                                 WHERE n.pfid = f.pfid) matched
+                  FROM funds f""")
     funds = counts["funds"]
     with_no = one("SELECT count(*) FROM funds WHERE form_d_file_no IS NOT NULL")
-    matched = one("""SELECT count(*) FROM funds f WHERE form_d_file_no IS NOT NULL
-                     AND EXISTS (SELECT 1 FROM formd_offerings o WHERE o.file_no = f.form_d_file_no)""")
-    matched_offerings = one("SELECT count(*) FROM formd_offerings WHERE file_no IN (SELECT form_d_file_no FROM funds)")
+    matched = one("SELECT count(*) FROM fund_match WHERE matched")
+    matched_offerings = one("SELECT count(*) FROM formd_offerings WHERE file_no IN (SELECT file_no FROM all_nos)")
+    via_extra = one("""SELECT count(*) FROM formd_offerings WHERE file_no IN (SELECT file_no FROM fund_file_nos)
+                       AND file_no NOT IN (SELECT form_d_file_no FROM funds WHERE form_d_file_no IS NOT NULL)""")
     launches = one("SELECT count(*) FROM formd_offerings WHERE is_fund = 1 AND is_amendment = 0")
     launches_matched = one("""SELECT count(*) FROM formd_offerings WHERE is_fund = 1 AND is_amendment = 0
-                              AND file_no IN (SELECT form_d_file_no FROM funds)""")
-    by_type = q("""SELECT fund_type, count(*), sum(form_d_file_no IS NOT NULL),
-                     sum(EXISTS (SELECT 1 FROM formd_offerings o WHERE o.file_no = f.form_d_file_no))
-                   FROM funds f GROUP BY fund_type ORDER BY fund_type""")
-    by_len = q("""SELECT length(substr(form_d_file_no, 5)) l, count(*),
-                    sum(EXISTS (SELECT 1 FROM formd_offerings o WHERE o.file_no = f.form_d_file_no))
-                  FROM funds f WHERE form_d_file_no IS NOT NULL GROUP BY l ORDER BY l""")
+                              AND file_no IN (SELECT file_no FROM all_nos)""")
+    by_type = q("""SELECT fund_type, count(*), sum(form_d_file_no IS NOT NULL), sum(matched)
+                   FROM fund_match GROUP BY fund_type ORDER BY fund_type""")
+    by_len = q("""SELECT length(substr(form_d_file_no, 5)) l, count(*), sum(matched)
+                  FROM fund_match WHERE form_d_file_no IS NOT NULL GROUP BY l ORDER BY l""")
     feeders = one("SELECT count(*) FROM funds WHERE is_feeder = 1")
     size_mb = db_path.stat().st_size / 1e6
 
     # Writes for the D1 load (rows x (1 + secondary indexes); partial index only for qualifying rows).
-    writes = counts["advisers"] * 2 + funds * 3 + counts["formd_offerings"] * 2 + launches + counts["meta"]
+    writes = (counts["advisers"] * 2 + funds * 3 + counts["fund_file_nos"] * 2
+              + counts["formd_offerings"] * 2 + launches + counts["meta"])
 
-    unmatched = [r[0] for r in q("""SELECT DISTINCT form_d_file_no FROM funds f WHERE form_d_file_no IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM formd_offerings o WHERE o.file_no = f.form_d_file_no) ORDER BY 1""")]
+    unmatched = [r[0] for r in q("""SELECT DISTINCT form_d_file_no FROM fund_match
+        WHERE form_d_file_no IS NOT NULL AND NOT matched ORDER BY 1""")]
     rng = random.Random(seed)
     sample = rng.sample(unmatched, min(edgar_sample, len(unmatched))) if edgar_sample else []
     looks: dict[str, EdgarLookup] = {}
@@ -159,7 +169,7 @@ def build_report(db_path: Path, edgar_sample: int, seed: int) -> str:
     L.append("| Measure | Count | Share |\n|---|---:|---:|")
     L.append(f"| In-scope funds | {funds:,} | |")
     L.append(f"| … with a Form D file number | {with_no:,} | {pct(with_no, funds)} of funds |")
-    L.append(f"| … matched to ≥ 1 Form D in the window | {matched:,} | **{pct(matched, with_no)}** of funds with a number |")
+    L.append(f"| … matched to ≥ 1 Form D in the window (any of its numbers) | {matched:,} | **{pct(matched, with_no)}** of funds with a number |")
     L.append(f"| Form D offerings matched to a fund | {matched_offerings:,} | {pct(matched_offerings, counts['formd_offerings'])} of offerings |")
     L.append(f"| First-time fund notices (new launches) | {launches:,} | |")
     L.append(f"| … resolved to a manager by file number | {launches_matched:,} | {pct(launches_matched, launches)} |")
@@ -177,10 +187,11 @@ def build_report(db_path: Path, edgar_sample: int, seed: int) -> str:
         L.append(f"- {st['repaired_adv_lines']} ADV CSV lines with bare quotes were repaired before parsing.")
         L.append(f"- {st['funds_with_only_unusable_file_nos']:,} funds list only placeholder numbers "
                  "(`021-999999`, `021-9999999999`, …) or unparseable ones; they get no file number.")
-        L.append(f"- {st['funds_with_several_file_nos']:,} funds list several Form D file numbers. We keep one (the "
-                 "number with the newest Form D in the window, else the smallest). Only "
-                 f"{st['funds_whose_other_file_nos_have_window_filings']:,} of them have filings under another number, "
-                 f"so {st['offerings_missed_by_single_file_no']:,} offerings are left out.")
+        L.append(f"- {st['funds_with_several_file_nos']:,} funds list several Form D file numbers. "
+                 "`funds.form_d_file_no` holds the one with the newest Form D in the window (else the smallest); "
+                 f"the other {counts['fund_file_nos']:,} numbers are in `fund_file_nos`. They bring in {via_extra:,} "
+                 f"filings for {st['funds_whose_other_file_nos_have_window_filings']:,} funds that the main number "
+                 "alone would miss.")
     L.append("\n## Why funds don't match\n")
     if sample:
         L.append(f"EDGAR lookup of {len(sample)} randomly chosen unmatched file numbers (seed {seed}, out of "

@@ -1,6 +1,6 @@
 # Join report
 
-Built 2026-11-07T19:09:32Z by `etl.transform`; Form D window 2023-11-07 – 2026-09-30; Form ADV as of 2026-10-31 (12 monthly IAPD folders).
+Built 2026-11-07T19:21:17Z by `etl.transform`; Form D window 2023-11-07 – 2026-09-30; Form ADV as of 2026-10-31 (12 monthly IAPD folders).
 
 ## Rows
 
@@ -8,10 +8,11 @@ Built 2026-11-07T19:09:32Z by `etl.transform`; Form D window 2023-11-07 – 2026
 |---|---:|
 | advisers | 7,423 |
 | funds | 89,708 |
-| formd_offerings | 46,729 |
+| fund_file_nos | 2,086 |
+| formd_offerings | 47,148 |
 | meta | 6 |
 
-Database size: **41.8 MB** (`build/fund.db`). Estimated D1 writes for the initial load: **415,978** rows incl. index writes (≈ 6 nights at 80k/day).
+Database size: **42.3 MB** (`build/fund.db`). Estimated D1 writes for the initial load: **421,068** rows incl. index writes (≈ 6 nights at 80k/day).
 
 - 69 advisers have `fund_count = 0`: their latest ADV lists VC/PE funds, but a newer filing by another adviser reports the same PFIDs, so the fund rows sit with that adviser.
 - 1,716 funds are flagged as feeders.
@@ -22,10 +23,10 @@ Database size: **41.8 MB** (`build/fund.db`). Estimated D1 writes for the initia
 |---|---:|---:|
 | In-scope funds | 89,708 | |
 | … with a Form D file number | 67,215 | 74.9% of funds |
-| … matched to ≥ 1 Form D in the window | 19,703 | **29.3%** of funds with a number |
-| Form D offerings matched to a fund | 24,047 | 51.5% of offerings |
-| First-time fund notices (new launches) | 38,544 | |
-| … resolved to a manager by file number | 15,862 | 41.2% |
+| … matched to ≥ 1 Form D in the window (any of its numbers) | 19,703 | **29.3%** of funds with a number |
+| Form D offerings matched to a fund | 24,705 | 52.4% of offerings |
+| First-time fund notices (new launches) | 38,624 | |
+| … resolved to a manager by file number | 16,181 | 41.9% |
 
 By fund type:
 
@@ -52,7 +53,7 @@ Data quirks handled by the transform:
 
 - 58 ADV CSV lines with bare quotes were repaired before parsing.
 - 628 funds list only placeholder numbers (`021-999999`, `021-9999999999`, …) or unparseable ones; they get no file number.
-- 1,320 funds list several Form D file numbers. We keep one (the number with the newest Form D in the window, else the smallest). Only 335 of them have filings under another number, so 419 offerings are left out.
+- 1,320 funds list several Form D file numbers. `funds.form_d_file_no` holds the one with the newest Form D in the window (else the smallest); the other 2,086 numbers are in `fund_file_nos`. They bring in 658 filings for 335 funds that the main number alone would miss.
 
 ## Why funds don't match
 

@@ -253,3 +253,26 @@ def test_three_years_ago():
     import datetime as dt
     assert T.three_years_ago(dt.date(2026, 11, 7)) == "2023-11-07"
     assert T.three_years_ago(dt.date(2028, 2, 29)) == "2025-02-28"
+
+
+def test_extra_file_nos(built):
+    res, db = built
+    x = PICKS["extra_file_no_fund"]
+    assert rows(db, "SELECT pfid FROM fund_file_nos WHERE file_no = ?", x["file_no"]) == [{"pfid": x["pfid"]}]
+    assert rows(db, "SELECT count(*) n FROM formd_offerings WHERE file_no = ?", x["file_no"])[0]["n"] >= 1
+    # extras never repeat the main number and always point at a kept fund
+    assert rows(db, """SELECT count(*) n FROM fund_file_nos x JOIN funds f USING (pfid)
+                       WHERE x.file_no = f.form_d_file_no""") == [{"n": 0}]
+    assert rows(db, "SELECT count(*) n FROM fund_file_nos WHERE pfid NOT IN (SELECT pfid FROM funds)") == [{"n": 0}]
+    # every fund number listed in the ADV (main or extra) is stored
+    con = res["con"]
+    listed = set(con.sql("SELECT pfid, file_no FROM fund_file_nos WHERE file_no IS NOT NULL").fetchall())
+    stored = {(r["pfid"], r["form_d_file_no"]) for r in rows(db, "SELECT pfid, form_d_file_no FROM funds WHERE form_d_file_no IS NOT NULL")}
+    stored |= {(r["pfid"], r["file_no"]) for r in rows(db, "SELECT pfid, file_no FROM fund_file_nos")}
+    assert listed == stored
+    # and every window filing under any of those numbers is loaded
+    want = {r[0] for r in con.sql("""SELECT accession_no FROM fd_window
+                                     WHERE file_no IN (SELECT file_no FROM fund_file_nos)""").fetchall()}
+    have = {r["accession_no"] for r in rows(db, "SELECT accession_no FROM formd_offerings")}
+    assert want <= have
+

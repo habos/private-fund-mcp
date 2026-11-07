@@ -75,6 +75,13 @@ def main() -> None:
         picks["history_fund"] = {"pfid": g[2], "file_no": g[3]}
         filings = {r[0] for r in q(con, f"SELECT FilingID FROM filing WHERE crd = '{a}'")}
         filings.add(g[0])
+        # H. a fund with several file numbers where a non-main number has window filings
+        h = q(con, """SELECT f.FilingID, f.ReferenceID, f.pfid, n.file_no FROM fund_rows f
+                      JOIN fund_file_nos n USING (pfid) JOIN fund_primary_file_no p USING (pfid)
+                      WHERE n.file_no <> p.file_no AND n.file_no IN (SELECT file_no FROM fd_window)
+                      ORDER BY f.pfid, n.file_no LIMIT 1""")[0]
+        picks["extra_file_no_fund"] = {"pfid": h[2], "file_no": h[3]}
+        filings.add(h[0])
         filings |= {b[0], hedge[0], e}
         filings |= {r[0] for r in q(con, f"SELECT FilingID FROM latest WHERE crd IN ({','.join(repr(c) for c in d[1])})")}
 
@@ -108,7 +115,7 @@ def main() -> None:
                                     ORDER BY "Fund Type" NOT IN ('Venture Capital Fund','Private Equity Fund'),
                                              ReferenceID::BIGINT LIMIT 4"""):
                 keep_refs.add((fid, ref))
-        keep_refs |= {(b[0], b[1]), (hedge[0], hedge[1]), (g[0], g[1])}
+        keep_refs |= {(b[0], b[1]), (hedge[0], hedge[1]), (g[0], g[1]), (h[0], h[1])}
         if bare:
             keep_refs.add((bare[0], bare[1]))
         for pf in [d[0]]:

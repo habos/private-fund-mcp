@@ -364,7 +364,7 @@ def build_formd(con, since: str) -> None:
     """)
     con.sql(f"CREATE OR REPLACE TABLE fd_window AS SELECT * FROM fd_all WHERE filing_date >= DATE '{since}'")
     # One file number per fund (SPEC has a single column): prefer the number with the newest
-    # Form D filing in the window, else the smallest number. All numbers stay in fund_file_nos.
+    # Form D filing in the window, else the smallest number. The others go to the fund_file_nos table.
     con.sql("""
     CREATE OR REPLACE TABLE fund_primary_file_no AS
     SELECT n.pfid, n.file_no FROM fund_file_nos n
@@ -375,7 +375,7 @@ def build_formd(con, since: str) -> None:
     con.sql("""
     CREATE OR REPLACE TABLE offerings AS
     SELECT w.* FROM fd_window w
-    WHERE w.file_no IN (SELECT file_no FROM fund_primary_file_no)
+    WHERE w.file_no IN (SELECT file_no FROM fund_file_nos WHERE file_no IS NOT NULL)
        OR (w.is_amendment = 0 AND w.is_fund = 1 AND w.fund_type IN ('Venture Capital Fund', 'Private Equity Fund'))
     """)
     con.sql("""
@@ -444,10 +444,15 @@ def write_sqlite(con, out_db: Path, meta: dict[str, str]) -> dict[str, int]:
 
     db.executemany("INSERT INTO advisers VALUES (?,?,?,?,?,?,?,?,?)", adviser_rows)
     db.executemany("INSERT INTO funds VALUES (?,?,?,?,?,?,?,?,?,?,?)", fund_rows)
+    extra_nos = con.sql("""
+      SELECT DISTINCT n.pfid, n.file_no FROM fund_file_nos n JOIN fund_primary_file_no p USING (pfid)
+      WHERE n.file_no IS NOT NULL AND n.file_no <> p.file_no ORDER BY 1, 2
+    """).fetchall()
+    db.executemany("INSERT INTO fund_file_nos VALUES (?,?)", extra_nos)
     db.executemany("INSERT INTO formd_offerings VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", offering_rows)
     db.executemany("INSERT INTO meta VALUES (?,?)", sorted(meta.items()))
     db.commit()
-    for t in ("advisers", "funds", "formd_offerings", "meta"):
+    for t in ("advisers", "funds", "fund_file_nos", "formd_offerings", "meta"):
         counts[t] = db.execute(f"SELECT count(*) FROM {t}").fetchone()[0]
     db.execute("VACUUM")
     db.close()
@@ -484,9 +489,9 @@ def build(adv_dir: Path, formd_dir: Path, out_db: Path, since: str, work_dir: Pa
         "funds_whose_other_file_nos_have_window_filings": con.sql(
             """SELECT count(DISTINCT n.pfid) FROM fund_file_nos n LEFT JOIN fund_primary_file_no p USING (pfid)
                WHERE n.file_no IS DISTINCT FROM p.file_no AND n.file_no IN (SELECT file_no FROM fd_window)""").fetchall()[0][0],
-        "offerings_missed_by_single_file_no": con.sql(
-            """SELECT count(*) FROM fd_window WHERE file_no IN (SELECT file_no FROM fund_file_nos)
-               AND accession_no NOT IN (SELECT accession_no FROM offerings)""").fetchall()[0][0],
+        "offerings_via_extra_file_nos": con.sql(
+            """SELECT count(*) FROM offerings WHERE file_no IN (SELECT file_no FROM fund_file_nos)
+               AND file_no NOT IN (SELECT file_no FROM fund_primary_file_no)""").fetchall()[0][0],
         "funds_with_only_unusable_file_nos": con.sql(
             """SELECT count(DISTINCT pfid) FROM fund_file_nos
                WHERE pfid NOT IN (SELECT pfid FROM fund_file_nos WHERE file_no IS NOT NULL)""").fetchall()[0][0],

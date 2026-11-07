@@ -28,6 +28,14 @@ CREATE TABLE funds (
 CREATE INDEX idx_funds_adviser ON funds(adviser_crd);
 CREATE INDEX idx_funds_file_no ON funds(form_d_file_no);
 
+-- Extra Form D file numbers of funds that list more than one (funds.form_d_file_no holds the main one).
+CREATE TABLE fund_file_nos (
+  pfid                TEXT NOT NULL REFERENCES funds(pfid),
+  file_no             TEXT NOT NULL,
+  PRIMARY KEY (pfid, file_no)
+);
+CREATE INDEX idx_fund_file_nos_file_no ON fund_file_nos(file_no);
+
 CREATE TABLE formd_offerings (
   accession_no        TEXT PRIMARY KEY,
   file_no             TEXT,
