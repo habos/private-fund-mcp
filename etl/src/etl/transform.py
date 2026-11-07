@@ -5,8 +5,8 @@ Inputs (never downloaded here):
   data/raw/formd/*_d.zip                  Form D Data Sets quarterly ZIPs
 
 Steps: read ADV CSVs (repairing the few lines with bare quotes), keep each adviser's latest
-filing, keep VC/PE 7.B.(1) funds (one row per PFID), then keep Form D filings in the last
-3 years that match a fund by file number, plus first-time VC/PE fund notices.
+filing, keep VC/PE 7.B.(1) funds (one row per PFID), then keep Form D filings since
+FORM_D_START (all data sets) that match a fund by file number, plus first-time VC/PE fund notices.
 
 Usage:  uv run python -m etl.transform [--since YYYY-MM-DD] [--out build/fund.db]
 """
@@ -27,6 +27,7 @@ import duckdb
 from etl.sec_client import RAW_DIR, REPO_ROOT
 
 BUILD_DIR = REPO_ROOT / "build"
+FORM_D_START = "2008-01-01"  # the SEC Form D data sets start in 2008Q1; full history is in scope
 SCHEMA_SQL = Path(__file__).with_name("schema.sql")
 
 ADV_KINDS = {
@@ -506,20 +507,12 @@ def build(adv_dir: Path, formd_dir: Path, out_db: Path, since: str, work_dir: Pa
     return {"counts": counts, "meta": meta, "stats": stats, "repaired_lines": adv_info["repaired_lines"], "con": con}
 
 
-def three_years_ago(today: dt.date | None = None) -> str:
-    today = today or dt.date.today()
-    try:
-        return today.replace(year=today.year - 3).isoformat()
-    except ValueError:  # Feb 29
-        return today.replace(year=today.year - 3, day=28).isoformat()
-
-
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--adv-dir", type=Path, default=RAW_DIR / "adv")
     parser.add_argument("--formd-dir", type=Path, default=RAW_DIR / "formd")
     parser.add_argument("--out", type=Path, default=BUILD_DIR / "fund.db")
-    parser.add_argument("--since", default=three_years_ago(), help="earliest Form D filing date (default: 3 years ago)")
+    parser.add_argument("--since", default=FORM_D_START, help=f"earliest Form D filing date (default: {FORM_D_START}, all data sets)")
     args = parser.parse_args(argv)
 
     result = build(args.adv_dir, args.formd_dir, args.out, args.since)

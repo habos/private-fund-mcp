@@ -9,5 +9,5 @@ For each row:
    - `harry_file_no_ok`: is `our_form_d_file_no` one of the numbers in question 22? Blank `our_form_d_file_no` is correct if question 22 is empty or a placeholder like `021-999999`.
 2. **Amount sold**: open `edgar_url`.
    - If it is a filing folder, open the primary doc: `harry_amount_ok` = does *Total Amount Sold* (Item 13) equal `our_latest_amount_sold_usd`? Also check it is the newest Form D for that file number.
-   - If it is a file-number list (no Form D in our 3-year window), check that the newest filing there is older than 2023-11-07, and write `y` if so.
+   - If it is a file-number list (no Form D in our data), check whether EDGAR shows any Form D for that number, and write `y` if it shows none or note what it shows.
 3. Use `y` / `n`, and put anything odd in `notes`. Our data is the latest ADV filed by 2026-10-31; if IAPD shows a newer filing, note it rather than marking `n`.

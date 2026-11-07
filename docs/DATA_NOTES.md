@@ -112,9 +112,9 @@ Fix used in exploration (`csv_check.py`): parse each line strictly; only when th
 - **Several file numbers per fund:** 1,320 kept funds list more than one. `funds.form_d_file_no` holds the number with the newest Form D in the window (else the smallest); the other 2,086 go to `fund_file_nos(pfid, file_no)` (schema change approved by Harry 2026-11-07). Window filings under any listed number are loaded, which adds 658 filings for 335 funds.
 - **Advisers with `fund_count = 0`:** 69 advisers' latest ADV reports VC/PE funds whose PFIDs are reported by a newer filing of another adviser. They stay in `advisers` (SPEC §3) with `fund_count = 0`.
 - **Older Form D data sets differ:** through 2020Q2, `FILING_DATE` is `YYYY-MM-DD hh:mm:ss` instead of `DD-MON-YYYY`; both are parsed, anything else fails the build. 22 primary issuers in 2020–2022 have an empty `ENTITYNAME`; they get `[issuer name missing in SEC data set]`. Found while measuring a 10-year window (2016-11-07): 120,965 offerings, 85.9% of funds with a number matched, ~629k D1 writes, 84.8 MB.
-- **Window:** `--since` defaults to today minus 3 years (2023-11-07 for this build); stored in `meta.form_d_since`.
+- **Window:** full Form D history: every quarterly data set (2008Q1 – latest, 75 ZIPs, earliest filing 2008-05-30). `--since` defaults to 2008-01-01 and is stored in `meta.form_d_since` (Harry chose full history 2026-11-07; it was 3 years).
 - **`related_persons`** JSON: `[{"name", "relationship", "city", "state"}]`, ordered by `RELATEDPERSON_SEQ_KEY`; `[]` when none (no filing in scope has none).
-- **Join match rate** is 29% of funds with a number, because most funds' last Form D predates the 3-year window (95 of 100 sampled unmatched numbers, checked on EDGAR). See `reports/join_report.md`.
+- **Join match rate** is 94.4% of funds with a number (full history). All 100 sampled unmatched numbers do not exist on EDGAR, so the rest are ADV typos. With a 3-year window it was 29%. See `reports/join_report.md`.
 
 ## 5. Open questions for Harry
 1. Initial load is far above the 80,000 writes/day budget. See `reports/row_estimates.md` for options.

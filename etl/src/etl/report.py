@@ -76,7 +76,7 @@ def classify(file_no: str, look: EdgarLookup | None, since: str, as_of_d: str) -
             return f"not on EDGAR; {len(digits)}-digit number looks mistyped in the ADV (Form D numbers have 5-6 digits)"
         return "not on EDGAR as a Form D file number (likely a typo in the ADV)"
     if look.latest_date < since:
-        return f"last Form D filed {look.latest_date}, before the 3-year window ({since})"
+        return f"last Form D filed {look.latest_date}, before the window ({since})"
     if look.latest_date > as_of_d:
         return f"Form D filed {look.latest_date}, after the latest quarterly data set ({as_of_d}); nightly EDGAR update will add it"
     return f"Form D on EDGAR dated {look.latest_date} but missing from our data: investigate"
@@ -137,7 +137,7 @@ def build_report(db_path: Path, edgar_sample: int, seed: int) -> str:
     for fno in sample:
         r = classify(fno, looks[fno], since, as_of_d)
         if r.startswith("last Form D filed"):
-            key = "last Form D filed before the 3-year window"
+            key = "last Form D filed before the window"
         elif r.startswith("not on EDGAR"):
             key = "not on EDGAR as a Form D file number (likely mistyped in the ADV)"
         else:
@@ -199,12 +199,8 @@ def build_report(db_path: Path, edgar_sample: int, seed: int) -> str:
         L.append("| Reason | Numbers |\n|---|---:|")
         for k, v in sorted(reasons.items(), key=lambda kv: -kv[1]):
             L.append(f"| {k} | {v} |")
-        old = reasons.get("last Form D filed before the 3-year window", 0)
-        L.append(f"\n**Verdict:** the match rate is low because of the 3-year window, not the file-number format. "
-                 f"{old} of {len(sample)} sampled unmatched numbers do exist on EDGAR, with their last Form D filed "
-                 "before the window (closed funds stop filing amendments). The rest look like typos in the ADV "
-                 "(often 7–8 digit numbers, e.g. a 6-digit number with `01` appended); we do not guess-correct them, "
-                 "since the join must be on IDs as filed.")
+        L.append("\nNumbers that are not on EDGAR are most likely mistyped in the ADV (often 7–8 digits, e.g. a "
+                 "6-digit number with `01` appended). We do not guess-correct them: the join must be on IDs as filed.")
     L.append("\n### 10 unmatched examples\n")
     L.append("| File no. | Fund | Adviser CRD | Likely reason |\n|---|---|---|---|")
     for fno, name, crd, why in ex_rows:

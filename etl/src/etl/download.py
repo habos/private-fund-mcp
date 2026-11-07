@@ -1,10 +1,10 @@
-"""Download the SEC Form D Data Sets ZIPs for the last N quarters.
+"""Download the SEC Form D Data Sets ZIPs (all quarters by default, or the last N).
 
 ZIP URLs are scraped from the SEC's Form D data sets page rather than guessed:
 the paths are not uniform (some live under /files/structureddata/..., newer ones
 under /files/datastandardsinnovation/..., and some carry a "_0" suffix).
 
-Usage:  uv run python -m etl.download [--quarters 12]
+Usage:  uv run python -m etl.download [--quarters N]
 """
 
 from __future__ import annotations
@@ -50,12 +50,14 @@ def latest_quarters(zips: list[QuarterZip], n: int) -> list[QuarterZip]:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--quarters", type=int, default=12)
+    parser.add_argument("--quarters", type=int, default=0, help="last N quarters; 0 = all (default)")
     args = parser.parse_args(argv)
 
     out_dir = RAW_DIR / "formd"
     with SecClient() as sec:
-        zips = latest_quarters(parse_zip_links(sec.get_text(FORM_D_PAGE)), args.quarters)
+        zips = parse_zip_links(sec.get_text(FORM_D_PAGE))
+        if args.quarters:
+            zips = latest_quarters(zips, args.quarters)
         if not zips:
             raise SystemExit("No Form D data set links found; the page layout may have changed.")
         for z in zips:

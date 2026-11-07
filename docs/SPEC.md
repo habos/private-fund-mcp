@@ -7,7 +7,7 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 **Ships by Sunday night**
 
 - Four read-only MCP tools: `resolve_manager`, `list_funds`, `fund_history`, `new_launches`.
-- Data: VC and PE funds only; Form D history for the last 3 years.
+- Data: VC and PE funds only; full Form D history (every SEC Form D data set, 2008 on; decided 2026-11-07).
 - A public Worker URL on `workers.dev`, connectable from Claude as a custom connector.
 - A nightly GitHub Action that adds new Form D filings.
 - 20 hand-checked funds (target: 19/20 correct) and 10 golden questions.
@@ -15,7 +15,7 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 **Deferred (not this weekend)**
 
 - `manager_timeline`, `find_people` tools.
-- Hedge, real estate and other fund types; Form D history beyond 3 years.
+- Hedge, real estate and other fund types.
 - Full 7.B.(2) co-adviser handling (just avoid double counting).
 - Write-up, demo video, Smithery/Glama listing.
 
@@ -33,7 +33,7 @@ This is the contract. If reality (the actual SEC files) disagrees with this spec
 
 - **Advisers:** every adviser (RIA or ERA) whose latest Form ADV reports at least one in-scope fund in 7.B.(1).
 - **Funds:** 7.B.(1) rows from each adviser's latest filing where fund type is venture capital or private equity (Schedule D 7.B.(1) question 10; confirm exact values in the file).
-- **Form D offerings:** filings (D and D/A) in the last 3 years whose Form D file number matches an in-scope fund, **plus** first-time Form D notices from pooled investment funds whose Form D fund type is venture capital or private equity, in the last 3 years, even if unmatched (needed by `new_launches`).
+- **Form D offerings:** filings (D and D/A) since 2008 (all Form D data sets) whose Form D file number matches an in-scope fund, **plus** first-time Form D notices from pooled investment funds whose Form D fund type is venture capital or private equity, since 2008, even if unmatched (needed by `new_launches`).
 - **Form D people:** related persons for in-scope Form D filings only, stored as JSON in `formd_offerings.related_persons` (decided 2026-11-07 to fit the D1 write budget).
 - Before building, Prompt 1 reports estimated row counts for each table. If the total (plus one extra row per index) exceeds ~80,000 rows, split the initial D1 load across nights (see section 6).
 
