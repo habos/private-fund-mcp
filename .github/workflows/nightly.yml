@@ -20,6 +20,11 @@ on:
 permissions:
   contents: read
 
+# `shell: bash` runs steps with -eo pipefail, so a failing step isn't hidden by `| tee`.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: d1-writes
   cancel-in-progress: false
