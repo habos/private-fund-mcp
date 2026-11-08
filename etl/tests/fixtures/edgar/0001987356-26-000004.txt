@@ -1,0 +1,254 @@
+<SEC-DOCUMENT>0001987356-26-000004.txt : 20260508
+<SEC-HEADER>0001987356-26-000004.hdr.sgml : 20260508
+<ACCEPTANCE-DATETIME>20260508113036
+ACCESSION NUMBER:		0001987356-26-000004
+CONFORMED SUBMISSION TYPE:	D/A
+PUBLIC DOCUMENT COUNT:		1
+ITEM INFORMATION:		Rule 506(b) provides a "safer harbor" for a private offering
+ITEM INFORMATION:		Investment Company Act Section 3(c)
+ITEM INFORMATION:		Section 3(c)(1)
+FILED AS OF DATE:		20260508
+DATE AS OF CHANGE:		20260508
+EFFECTIVENESS DATE:		20260508
+
+FILER:
+
+	COMPANY DATA:	
+		COMPANY CONFORMED NAME:			Panther Plus Growth Fund II, LP
+		CENTRAL INDEX KEY:			0001987356
+		ORGANIZATION NAME:           	
+		EIN:				922158532
+		STATE OF INCORPORATION:			DE
+		FISCAL YEAR END:			1231
+
+	FILING VALUES:
+		FORM TYPE:		D/A
+		SEC ACT:		1933 Act
+		SEC FILE NUMBER:	021-487925
+		FILM NUMBER:		26956873
+
+	BUSINESS ADDRESS:	
+		STREET 1:		400 S. EL CAMINO REAL, SUITE 1100
+		CITY:			SAN MATEO
+		STATE:			CA
+		ZIP:			94402
+		BUSINESS PHONE:		650-396-2000
+
+	MAIL ADDRESS:	
+		STREET 1:		400 S. EL CAMINO REAL, SUITE 1100
+		CITY:			SAN MATEO
+		STATE:			CA
+		ZIP:			94402
+</SEC-HEADER>
+<DOCUMENT>
+<TYPE>D/A
+<SEQUENCE>1
+<FILENAME>primary_doc.xml
+<TEXT>
+<XML>
+<?xml version="1.0"?>
+<edgarSubmission>
+
+    <schemaVersion>X0708</schemaVersion>
+
+    <submissionType>D/A</submissionType>
+
+    <testOrLive>LIVE</testOrLive>
+
+    <primaryIssuer>
+        <cik>0001987356</cik>
+        <entityName>Panther Plus Growth Fund II, LP</entityName>
+        <issuerAddress>
+            <street1>250 California Dr., Floor 3</street1>
+            <city>Burlingame</city>
+            <stateOrCountry>CA</stateOrCountry>
+            <stateOrCountryDescription>CALIFORNIA</stateOrCountryDescription>
+            <zipCode>94010</zipCode>
+        </issuerAddress>
+        <issuerPhoneNumber>650-396-2000</issuerPhoneNumber>
+        <jurisdictionOfInc>DELAWARE</jurisdictionOfInc>
+        <issuerPreviousNameList>
+            <value>None</value>
+        </issuerPreviousNameList>
+        <edgarPreviousNameList>
+            <value>None</value>
+        </edgarPreviousNameList>
+        <entityType>Limited Partnership</entityType>
+        <yearOfInc>
+            <withinFiveYears>true</withinFiveYears>
+            <value>2023</value>
+        </yearOfInc>
+    </primaryIssuer>
+
+    <relatedPersonsList>
+        <relatedPersonInfo>
+            <relatedPersonName>
+                <firstName>N/A</firstName>
+                <lastName>Panther Plus Advisors, LLC</lastName>
+            </relatedPersonName>
+            <relatedPersonAddress>
+                <street1>250 California Dr., Floor 3</street1>
+                <city>Burlingame</city>
+                <stateOrCountry>CA</stateOrCountry>
+                <stateOrCountryDescription>CALIFORNIA</stateOrCountryDescription>
+                <zipCode>94010</zipCode>
+            </relatedPersonAddress>
+            <relatedPersonRelationshipList>
+                <relationship>Promoter</relationship>
+            </relatedPersonRelationshipList>
+            <relationshipClarification>General Partner (Fund Manager)</relationshipClarification>
+        </relatedPersonInfo>
+        <relatedPersonInfo>
+            <relatedPersonName>
+                <firstName>Richard</firstName>
+                <lastName>de Silva</lastName>
+            </relatedPersonName>
+            <relatedPersonAddress>
+                <street1>250 California Dr., Floor 3</street1>
+                <city>Burlingame</city>
+                <stateOrCountry>CA</stateOrCountry>
+                <stateOrCountryDescription>CALIFORNIA</stateOrCountryDescription>
+                <zipCode>94010</zipCode>
+            </relatedPersonAddress>
+            <relatedPersonRelationshipList>
+                <relationship>Promoter</relationship>
+            </relatedPersonRelationshipList>
+            <relationshipClarification>Managing Partner of the fund Manager and Management Company</relationshipClarification>
+        </relatedPersonInfo>
+        <relatedPersonInfo>
+            <relatedPersonName>
+                <firstName>N/A</firstName>
+                <lastName>Lateral Investment Management LLC</lastName>
+            </relatedPersonName>
+            <relatedPersonAddress>
+                <street1>250 California Dr., Floor 3</street1>
+                <city>Burlingame</city>
+                <stateOrCountry>CA</stateOrCountry>
+                <stateOrCountryDescription>CALIFORNIA</stateOrCountryDescription>
+                <zipCode>94010</zipCode>
+            </relatedPersonAddress>
+            <relatedPersonRelationshipList>
+                <relationship>Promoter</relationship>
+            </relatedPersonRelationshipList>
+            <relationshipClarification>Management Company of the Fund</relationshipClarification>
+        </relatedPersonInfo>
+        <relatedPersonInfo>
+            <relatedPersonName>
+                <firstName>M.</firstName>
+                <middleName>Claire</middleName>
+                <lastName>Hickey</lastName>
+            </relatedPersonName>
+            <relatedPersonAddress>
+                <street1>250 California Dr., Floor 3</street1>
+                <city>Burlingame</city>
+                <stateOrCountry>CA</stateOrCountry>
+                <stateOrCountryDescription>CALIFORNIA</stateOrCountryDescription>
+                <zipCode>94010</zipCode>
+            </relatedPersonAddress>
+            <relatedPersonRelationshipList>
+                <relationship>Director</relationship>
+            </relatedPersonRelationshipList>
+            <relationshipClarification>Managing Director of the Management Company</relationshipClarification>
+        </relatedPersonInfo>
+    </relatedPersonsList>
+
+    <offeringData>
+        <industryGroup>
+            <industryGroupType>Pooled Investment Fund</industryGroupType>
+            <investmentFundInfo>
+                <investmentFundType>Other Investment Fund</investmentFundType>
+                <is40Act>false</is40Act>
+            </investmentFundInfo>
+        </industryGroup>
+        <issuerSize>
+            <aggregateNetAssetValueRange>Decline to Disclose</aggregateNetAssetValueRange>
+        </issuerSize>
+        <federalExemptionsExclusions>
+            <item>06b</item>
+            <item>3C</item>
+            <item>3C.1</item>
+        </federalExemptionsExclusions>
+        <typeOfFiling>
+            <newOrAmendment>
+                <isAmendment>true</isAmendment>
+                <previousAccessionNumber>0001987356-23-000001</previousAccessionNumber>
+            </newOrAmendment>
+            <dateOfFirstSale>
+                <value>2023-11-30</value>
+            </dateOfFirstSale>
+        </typeOfFiling>
+        <durationOfOffering>
+            <moreThanOneYear>false</moreThanOneYear>
+        </durationOfOffering>
+        <typesOfSecuritiesOffered>
+            <isEquityType>true</isEquityType>
+            <isPooledInvestmentFundType>true</isPooledInvestmentFundType>
+        </typesOfSecuritiesOffered>
+        <businessCombinationTransaction>
+            <isBusinessCombinationTransaction>false</isBusinessCombinationTransaction>
+            <clarificationOfResponse></clarificationOfResponse>
+        </businessCombinationTransaction>
+        <minimumInvestmentAccepted>50000</minimumInvestmentAccepted>
+        <salesCompensationList>
+            <recipient>
+                <recipientName>Crescent Securities Group, Inc.</recipientName>
+                <recipientCRDNumber>114993</recipientCRDNumber>
+                <associatedBDName>None</associatedBDName>
+                <associatedBDCRDNumber>None</associatedBDCRDNumber>
+                <recipientAddress>
+                    <street1>4975 Preston Park Blvd</street1>
+                    <city>Plano</city>
+                    <stateOrCountry>TX</stateOrCountry>
+                    <stateOrCountryDescription>TEXAS</stateOrCountryDescription>
+                    <zipCode>75093</zipCode>
+                </recipientAddress>
+                <statesOfSolicitationList>
+                    <value>All States</value>
+                </statesOfSolicitationList>
+                <foreignSolicitation>false</foreignSolicitation>
+            </recipient>
+        </salesCompensationList>
+        <offeringSalesAmounts>
+            <totalOfferingAmount>20000000</totalOfferingAmount>
+            <totalAmountSold>11030629</totalAmountSold>
+            <totalRemaining>8969371</totalRemaining>
+            <clarificationOfResponse></clarificationOfResponse>
+        </offeringSalesAmounts>
+        <investors>
+            <hasNonAccreditedInvestors>false</hasNonAccreditedInvestors>
+            <totalNumberAlreadyInvested>93</totalNumberAlreadyInvested>
+        </investors>
+        <salesCommissionsFindersFees>
+            <salesCommissions>
+                <dollarAmount>1800000</dollarAmount>
+                <isEstimate>true</isEstimate>
+            </salesCommissions>
+            <findersFees>
+                <dollarAmount>0</dollarAmount>
+                <isEstimate>true</isEstimate>
+            </findersFees>
+            <clarificationOfResponse>For the &quot;BD&quot; Class Units Only,the Managing Dealer will receive selling commissions of up to 6.0% of gross offering proceeds.
+The Managing Dealer will earn a Fee of up to 3.0% of gross offering proceeds attributable to sales of any Class of Units.</clarificationOfResponse>
+        </salesCommissionsFindersFees>
+        <useOfProceeds>
+            <grossProceedsUsed>
+                <dollarAmount>0</dollarAmount>
+            </grossProceedsUsed>
+            <clarificationOfResponse></clarificationOfResponse>
+        </useOfProceeds>
+        <signatureBlock>
+            <authorizedRepresentative>false</authorizedRepresentative>
+            <signature>
+                <issuerName>Panther Plus Growth Fund II, LP</issuerName>
+                <signatureName>/s/ Richard de Silva</signatureName>
+                <nameOfSigner>Richard de Silva</nameOfSigner>
+                <signatureTitle>Managing Partner of the General Partner</signatureTitle>
+                <signatureDate>2026-05-08</signatureDate>
+            </signature>
+        </signatureBlock>
+    </offeringData>
+</edgarSubmission>
+</XML>
+</TEXT>
+</DOCUMENT>
+</SEC-DOCUMENT>

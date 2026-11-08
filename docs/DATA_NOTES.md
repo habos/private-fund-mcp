@@ -116,7 +116,39 @@ Fix used in exploration (`csv_check.py`): parse each line strictly; only when th
 - **`related_persons`** JSON: `[{"name", "relationship", "city", "state"}]`, ordered by `RELATEDPERSON_SEQ_KEY`; `[]` when none (no filing in scope has none).
 - **Join match rate** is 94.4% of funds with a number (full history). All 100 sampled unmatched numbers do not exist on EDGAR, so the rest are ADV typos. With a 3-year window it was 29%. See `reports/join_report.md`.
 
-## 5. Open questions for Harry
+## 5. EDGAR daily index and Form D submissions (Prompt 5, verified 2026-11-07)
+
+Used by `etl.incremental` for filings newer than the last quarterly data set (2026Q3 ends 2026-09-30).
+
+- **Quarter listing:** `https://www.sec.gov/Archives/edgar/daily-index/{YYYY}/QTR{n}/index.json` → `directory.item[].name`, e.g. `form.20261105.idx`. One file per EDGAR business day (none on weekends/holidays). Each day's files are posted around 22:00 Eastern (the listing shows `last-modified` ≈ 10:02 PM), so the nightly job runs at 06:30 UTC and never reads today's index.
+- **`form.YYYYMMDD.idx`:** 11 header lines ending in a dashed line, then fixed-width rows `Form Type | Company Name | CIK | Date Filed (YYYYMMDD) | File Name (edgar/data/{cik}/{accession}.txt)`. Form types can contain spaces (`1-A POS`, `DEF 14A`), so rows are parsed by runs of 2+ spaces from the left and single tokens from the right. Form D rows are `D` and `D/A`; 2026-11-05 had 262 of 5,593 rows.
+- **Co-issuer filings are listed once per issuer CIK** under the same accession (2 of 262 on 2026-11-05): deduplicated by accession before download.
+- **Submission `.txt`** (one request per filing, ~6–10 KB): `<SEC-HEADER>` then `<DOCUMENT>` with `<FILENAME>primary_doc.xml` and the XML inside `<XML>…</XML>`. No XML namespace seen (schema `X0708`).
+  - Header: `ACCESSION NUMBER:`, `FILED AS OF DATE: YYYYMMDD`, and one `FILER:` block per issuer with `CENTRAL INDEX KEY:` and `SEC FILE NUMBER: 021-…`. The file number is **only in the header**, not in `primary_doc.xml`; we take the block whose CIK is the primary issuer's.
+
+| `formd_offerings` column | Submission field | Data set equivalent |
+|---|---|---|
+| accession_no | header `ACCESSION NUMBER` | `ACCESSIONNUMBER` |
+| file_no | header `SEC FILE NUMBER` (primary issuer's FILER block), normalized | `FILE_NUM` |
+| cik | `primaryIssuer/cik` (zero-padded, as in the data sets) | `ISSUERS.CIK` |
+| issuer_name | `primaryIssuer/entityName` | `ENTITYNAME` |
+| is_amendment | `offeringData/typeOfFiling/newOrAmendment/isAmendment` = `true` | `ISAMENDMENT` |
+| is_fund | `offeringData/industryGroup/industryGroupType` = `Pooled Investment Fund` | `INDUSTRYGROUPTYPE` |
+| fund_type | `offeringData/industryGroup/investmentFundInfo/investmentFundType` | `INVESTMENTFUNDTYPE` |
+| filing_date | header `FILED AS OF DATE` | `FILING_DATE` |
+| first_sale_date | `typeOfFiling/dateOfFirstSale/value`; NULL when `dateOfFirstSale/yetToOccur` = `true` | `SALE_DATE`, `YETTOOCCUR` |
+| total_offering_usd / offering_indefinite | `offeringSalesAmounts/totalOfferingAmount` (number or `Indefinite`: 53 of 120 sampled) | `TOTALOFFERINGAMOUNT` |
+| total_sold_usd | `offeringSalesAmounts/totalAmountSold` | `TOTALAMOUNTSOLD` |
+| investors_count | `investors/totalNumberAlreadyInvested` | `TOTALNUMBERALREADYINVESTED` |
+| min_investment_usd | `minimumInvestmentAccepted` | `MINIMUMINVESTMENTACCEPTED` |
+| state | `primaryIssuer/issuerAddress/stateOrCountry` | `ISSUERS.STATEORCOUNTRY` |
+| related_persons | `relatedPersonsList/relatedPersonInfo`: `relatedPersonName/{firstName,middleName,lastName}`, `relatedPersonRelationshipList/relationship` (first 3), `relatedPersonAddress/{city,stateOrCountry}` | `RELATEDPERSONS` |
+
+- **Cross-check:** two D/A filings that are in the 2026Q2 data set (`0002027473-26-000003`, `0001987356-26-000004`) parse to exactly the data-set values for every column above, including related persons (`etl/tests/test_incremental.py`).
+- `testOrLive` = `TEST` filings are skipped (none seen).
+- **Volume:** a full run of 2026-11-05 read 262 filings and kept 98 (all unmatched first-time VC/PE notices in a scratch scope DB; ~half have SPV-like names), ≈ 390 D1 writes. Budget ≈ 400–500 writes per business day, so catching up from 2026-09-30 is ~15k writes.
+
+## 6. Open questions for Harry
 1. Initial load is far above the 80,000 writes/day budget. See `reports/row_estimates.md` for options.
 2. ~~Funds with several Form D file numbers~~ Decided 2026-11-07: added the `fund_file_nos` table so no filings are dropped.
 3. Fund type "Other Private Fund" with free text saying VC/PE: ignore in v1 (current plan).

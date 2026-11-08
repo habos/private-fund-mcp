@@ -149,3 +149,79 @@ def test_rows_written_parsing():
     local = json.dumps([{"results": [], "success": True, "meta": {"duration": 0}}], indent=2)
     assert L.rows_written_from(banner + local) is None
     assert L.rows_written_from("not json") is None
+
+
+def ledger_on(d1: FakeD1) -> L.Ledger:
+    def q(sql):
+        d1.db.row_factory = sqlite3.Row
+        try:
+            return [dict(r) for r in d1.db.execute(sql)]
+        finally:
+            d1.db.row_factory = None
+    return L.Ledger(q)
+
+
+def test_shared_ledger_keeps_two_writers_in_one_budget(fund_db, tmp_path):
+    """The Mac backfill and the nightly Action keep separate state files but share meta.d1_writes."""
+    m = E.export(fund_db, tmp_path / "sql", max_rows=3)
+    d1 = FakeD1()
+    a = L.load(tmp_path / "sql", tmp_path / "a.json", "remote", 30, execute=d1, today=lambda: "2026-11-07",
+               schema=SCHEMA_SQL, log=lambda _: None, ledger=ledger_on(d1))
+    assert 0 < a["written_today"] <= 30
+    ledger = json.loads(d1.db.execute("SELECT value FROM meta WHERE key = 'd1_writes'").fetchone()[0])
+    assert ledger == {"day": "2026-11-07", "written": a["written_today"]}
+    assert not list((tmp_path / "sql").glob("*.ledger"))  # temp files are cleaned up
+
+    # Writer B has its own state file (it never saw A's chunks) but sees A's spend through the ledger.
+    E.export(fund_db, tmp_path / "sql_b", max_rows=3)
+    b = L.load(tmp_path / "sql_b", tmp_path / "b.json", "remote", 30, execute=d1, today=lambda: "2026-11-07",
+               schema=None, log=lambda _: None, ledger=ledger_on(d1))
+    assert b["written_today"] <= 30
+    assert b["chunks_done"] < a["chunks_done"]  # A already used most of the day's 30
+    # A ledger from another day counts as zero.
+    c = L.load(tmp_path / "sql_b", tmp_path / "b.json", "remote", 30, execute=d1, today=lambda: "2026-11-08",
+               schema=None, log=lambda _: None, ledger=ledger_on(d1))
+    assert c["chunks_done"] > b["chunks_done"]
+
+
+def test_results_from_wrangler_json():
+    out = "\x1b[33m▲ banner [x]\x1b[0m\n[\n  {\"results\": [{\"value\": \"2026-09-30\"}], \"success\": true, \"meta\": {}}\n]\n"
+    assert L.results_from(out) == [{"value": "2026-09-30"}]
+
+
+def test_diff_export_touches_only_changed_rows(fund_db, tmp_path):
+    new = tmp_path / "new.db"
+    new.write_bytes(fund_db.read_bytes())
+    db = sqlite3.connect(new)
+    db.execute("UPDATE funds SET gross_asset_value_usd = 123 WHERE pfid = '805-0000000002'")  # changed
+    db.execute("DELETE FROM fund_file_nos")  # gone
+    db.execute("DELETE FROM funds WHERE pfid = '805-0000000007'")  # gone
+    db.execute("INSERT INTO advisers VALUES ('9', 'New', 'new', 'ERA', NULL, NULL, NULL, '2026-11-01', 0)")  # new
+    db.execute("UPDATE meta SET value = '2026-12-31' WHERE key = 'as_of_form_d'")  # never sent by a diff
+    db.execute("INSERT INTO meta VALUES ('as_of_form_adv', '2026-11-30')")
+    db.commit()
+    db.close()
+
+    m = E.export_diff(new, fund_db, tmp_path / "diff")
+    names = [c["file"] for c in m["chunks"]]
+    assert names == ["0001_fund_file_nos_delete.sql", "0002_funds_delete.sql", "0003_advisers.sql",
+                     "0004_funds_update.sql", "0005_meta.sql"]
+    assert m["total_rows"] == 5
+    assert m["chunks"][3]["cost"] == 2 * 4  # replace = delete + insert of row + PK + 2 indexes
+
+    # D1 = old build + a filing the nightly job added; applying the diff gives the new build + that filing.
+    d1 = sqlite3.connect(":memory:")
+    d1.executescript(SCHEMA_SQL.read_text())
+    for c in E.export(fund_db, tmp_path / "full")["chunks"]:
+        d1.executescript((tmp_path / "full" / c["file"]).read_text())
+    d1.execute("INSERT INTO formd_offerings (accession_no, cik, issuer_name, is_amendment, is_fund, filing_date) "
+               "VALUES ('0000000009-26-000001', '9', 'Nightly', 0, 1, '2026-11-05')")
+    d1.execute("UPDATE meta SET value = '2026-11-05' WHERE key = 'as_of_form_d'")
+    for c in m["chunks"]:
+        d1.executescript((tmp_path / "diff" / c["file"]).read_text())
+    src = sqlite3.connect(new)
+    for t in ("advisers", "funds", "fund_file_nos"):
+        assert d1.execute(f"SELECT * FROM {t} ORDER BY 1").fetchall() == src.execute(f"SELECT * FROM {t} ORDER BY 1").fetchall()
+    assert d1.execute("SELECT count(*) FROM formd_offerings").fetchone()[0] == 5
+    meta = dict(d1.execute("SELECT key, value FROM meta"))
+    assert meta["as_of_form_d"] == "2026-11-05" and meta["as_of_form_adv"] == "2026-11-30"

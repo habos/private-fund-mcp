@@ -7,7 +7,10 @@ so a chunk that failed half way can simply be applied again. Before each chunk i
 chunk's estimated cost still fits today's budget (UTC day; D1 resets its limits at 00:00 UTC).
 Rows written are taken from D1's own response when it reports them, else from the estimate.
 
-Usage:  uv run python -m etl.load --remote [--budget 80000]
+Remote loads share one daily count with every other writer through meta.d1_writes in D1 (the
+Mac backfill, the nightly GitHub Action and a manual ADV refresh), so together they stay in budget.
+
+Usage:  uv run python -m etl.load --remote [--budget 80000] [--sql-dir build/sql]
         uv run python -m etl.load --local            (no budget unless --budget is given)
 """
 
@@ -72,6 +75,53 @@ def wrangler_execute(sql_file: Path, target: str, db_name: str = DB_NAME) -> int
     return rows_written_from(p.stdout)
 
 
+def wrangler_query(sql: str, target: str = "remote", db_name: str = DB_NAME) -> list[dict]:
+    """Run one read query with `wrangler d1 execute --command` and return its result rows."""
+    cmd = ["npx", "wrangler", "d1", "execute", db_name, f"--{target}", "--command", sql, "--json", "--yes"]
+    p = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True)
+    if p.returncode != 0:
+        raise RuntimeError(f"wrangler query failed (exit {p.returncode}):\n{p.stderr or p.stdout}")
+    return results_from(p.stdout)
+
+
+def results_from(output: str) -> list[dict]:
+    lines = output.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.strip() == "[" or l.lstrip().startswith("[{")), None)
+    if start is None:
+        raise RuntimeError(f"no JSON in wrangler output:\n{output[:500]}")
+    data = json.loads("\n".join(lines[start:]))
+    return [r for item in data for r in (item.get("results") or [])]
+
+
+# --------------------------------------------------------------------------------------
+# Shared daily ledger in D1 (meta.d1_writes) so every writer (the Mac backfill, the nightly
+# Action, a manual ADV refresh) sees what the others already spent today.
+# --------------------------------------------------------------------------------------
+
+LEDGER_KEY = "d1_writes"
+LEDGER_COST = 4  # REPLACE of one meta row: delete + insert, row + PK autoindex each
+
+
+class Ledger:
+    def __init__(self, query: Callable[[str], list[dict]]):
+        self.query = query
+
+    def read(self, day: str) -> int:
+        rows = self.query(f"SELECT value FROM meta WHERE key = '{LEDGER_KEY}' LIMIT 1")
+        if not rows:
+            return 0
+        try:
+            v = json.loads(rows[0]["value"])
+        except (TypeError, ValueError):
+            return 0
+        return int(v.get("written", 0)) if v.get("day") == day else 0
+
+    @staticmethod
+    def statement(day: str, written: int) -> str:
+        value = json.dumps({"day": day, "written": written}, separators=(",", ":"))
+        return f"INSERT OR REPLACE INTO meta (key, value) VALUES ('{LEDGER_KEY}', '{value}');\n"
+
+
 def read_state(path: Path) -> dict:
     return json.loads(path.read_text()) if path.exists() else {}
 
@@ -91,8 +141,13 @@ def load(
     today: Callable[[], str] = utc_today,
     schema: Path | None = None,
     log: Callable[[str], None] = print,
+    ledger: Ledger | None = None,
 ) -> dict:
-    """Apply chunks until done or the budget is spent. Returns a summary dict."""
+    """Apply chunks until done or the budget is spent. Returns a summary dict.
+
+    With a ledger, today's spend is the larger of this state file's count and the shared D1
+    ledger (plus what this run added), and every chunk also updates the ledger in the same file.
+    """
     manifest = json.loads((sql_dir / "manifest.json").read_text())
     state = read_state(state_path)
     tstate = state.setdefault(target, {})
@@ -105,8 +160,15 @@ def load(
     applied: dict = tstate.setdefault("applied", {})
     days: dict = tstate.setdefault("written_by_day", {})
 
+    start_day = today()
+    local_at_start = days.get(start_day, 0)
+    shared_at_start = 0  # read after the schema exists (meta may not exist on a fresh database)
+
     def spent() -> int:
-        return days.get(today(), 0)
+        local = days.get(today(), 0)
+        if ledger is None or today() != start_day:
+            return local
+        return max(local, shared_at_start + local - local_at_start)
 
     def record(cost: int) -> None:
         days[today()] = spent() + cost
@@ -117,6 +179,8 @@ def load(
         execute(schema, target)
         tstate["schema_applied"] = True
         write_state(state_path, state)
+    if ledger is not None:
+        shared_at_start = ledger.read(start_day)
 
     stopped = False
     for chunk in manifest["chunks"]:
@@ -125,15 +189,24 @@ def load(
             continue
         if budget is not None and chunk["cost"] > budget:
             raise SystemExit(f"{name} costs {chunk['cost']:,} writes, more than the whole budget; re-export with smaller --rows")
-        if budget is not None and spent() + chunk["cost"] > budget:
+        extra = LEDGER_COST if ledger is not None else 0
+        if budget is not None and spent() + chunk["cost"] + extra > budget:
             stopped = True
             break
+        path = sql_dir / name
+        if ledger is not None:
+            path = sql_dir / f"{name}.ledger"
+            path.write_text((sql_dir / name).read_text(encoding="utf-8")
+                            + Ledger.statement(today(), spent() + chunk["cost"] + extra), encoding="utf-8")
         try:
-            actual = execute(sql_dir / name, target)
+            actual = execute(path, target)
         except Exception:
-            record(chunk["cost"])  # a failed chunk may still have written rows; count them to be safe
+            record(chunk["cost"] + extra)  # a failed chunk may still have written rows; count them to be safe
             raise
-        cost = actual if actual is not None else chunk["cost"]
+        finally:
+            if ledger is not None:
+                path.unlink(missing_ok=True)
+        cost = actual if actual is not None else chunk["cost"] + extra
         applied[name] = {"rows": chunk["rows"], "written": cost, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")}
         record(cost)
         log(f"  {name:<28}{chunk['rows']:>6} rows  {cost:>7,} written (est {chunk['cost']:,})  today {spent():,}")
@@ -162,10 +235,15 @@ def main(argv: list[str] | None = None) -> None:
     where.add_argument("--local", action="store_true", help="load wrangler's local D1 (worker/.wrangler)")
     parser.add_argument("--budget", type=int, default=None, help=f"rows written per UTC day (default {DEFAULT_BUDGET:,} remote, none local)")
     parser.add_argument("--sql-dir", type=Path, default=BUILD_DIR / "sql")
-    parser.add_argument("--state", type=Path, default=BUILD_DIR / "load_state.json")
+    parser.add_argument("--state", type=Path, default=None,
+                        help="default build/load_state.json for build/sql, else <sql-dir>/load_state.json")
     parser.add_argument("--db-name", default=DB_NAME)
     parser.add_argument("--reset", action="store_true", help="forget progress for this target (only for a fresh database)")
+    parser.add_argument("--no-ledger", action="store_true", help="don't read or update the shared meta.d1_writes ledger")
     args = parser.parse_args(argv)
+    if args.state is None:
+        default_sql = (BUILD_DIR / "sql").resolve()
+        args.state = BUILD_DIR / "load_state.json" if args.sql_dir.resolve() == default_sql else args.sql_dir / "load_state.json"
     target = "remote" if args.remote else "local"
     budget = args.budget if args.budget is not None else (DEFAULT_BUDGET if args.remote else None)
 
@@ -178,6 +256,7 @@ def main(argv: list[str] | None = None) -> None:
         args.sql_dir, args.state, target, budget,
         execute=lambda f, t: wrangler_execute(f, t, args.db_name),
         schema=WORKER_DIR / "schema.sql",
+        ledger=None if (args.no_ledger or target != "remote") else Ledger(lambda q: wrangler_query(q, target, args.db_name)),
     )
     print()
     print(f"target            {target}")

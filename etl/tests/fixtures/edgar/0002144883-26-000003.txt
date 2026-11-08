@@ -1,0 +1,184 @@
+<SEC-DOCUMENT>0002144883-26-000003.txt : 20261105
+<SEC-HEADER>0002144883-26-000003.hdr.sgml : 20261105
+<ACCEPTANCE-DATETIME>20261105144253
+ACCESSION NUMBER:		0002144883-26-000003
+CONFORMED SUBMISSION TYPE:	D/A
+PUBLIC DOCUMENT COUNT:		1
+ITEM INFORMATION:		Rule 506(b) provides a "safer harbor" for a private offering
+ITEM INFORMATION:		Investment Company Act Section 3(c)
+ITEM INFORMATION:		Section 3(c)(1)
+FILED AS OF DATE:		20261105
+DATE AS OF CHANGE:		20261105
+EFFECTIVENESS DATE:		20261105
+
+FILER:
+
+	COMPANY DATA:	
+		COMPANY CONFORMED NAME:			ANIMAL CAPITAL FUND III LP
+		CENTRAL INDEX KEY:			0002144883
+		ORGANIZATION NAME:           	
+		EIN:				000000000
+		STATE OF INCORPORATION:			DE
+		FISCAL YEAR END:			1231
+
+	FILING VALUES:
+		FORM TYPE:		D/A
+		SEC ACT:		1933 Act
+		SEC FILE NUMBER:	021-591542
+		FILM NUMBER:		261526641
+
+	BUSINESS ADDRESS:	
+		STREET 1:		7101 CREEDMOOR RD.
+		STREET 2:		STE. 142
+		CITY:			RALEIGH
+		STATE:			NC
+		ZIP:			27613
+		BUSINESS PHONE:		9196083042
+
+	MAIL ADDRESS:	
+		STREET 1:		7101 CREEDMOOR RD.
+		STREET 2:		STE. 142
+		CITY:			RALEIGH
+		STATE:			NC
+		ZIP:			27613
+</SEC-HEADER>
+<DOCUMENT>
+<TYPE>D/A
+<SEQUENCE>1
+<FILENAME>primary_doc.xml
+<TEXT>
+<XML>
+<?xml version="1.0"?>
+<edgarSubmission>
+
+    <schemaVersion>X0708</schemaVersion>
+
+    <submissionType>D/A</submissionType>
+
+    <testOrLive>LIVE</testOrLive>
+
+    <primaryIssuer>
+        <cik>0002144883</cik>
+        <entityName>ANIMAL CAPITAL FUND III LP</entityName>
+        <issuerAddress>
+            <street1>7101 CREEDMOOR RD.</street1>
+            <street2>STE. 142</street2>
+            <city>RALEIGH</city>
+            <stateOrCountry>NC</stateOrCountry>
+            <stateOrCountryDescription>NORTH CAROLINA</stateOrCountryDescription>
+            <zipCode>27613</zipCode>
+        </issuerAddress>
+        <issuerPhoneNumber>9196083042</issuerPhoneNumber>
+        <jurisdictionOfInc>DELAWARE</jurisdictionOfInc>
+        <issuerPreviousNameList>
+            <value>None</value>
+        </issuerPreviousNameList>
+        <edgarPreviousNameList>
+            <value>None</value>
+        </edgarPreviousNameList>
+        <entityType>Limited Partnership</entityType>
+        <yearOfInc>
+            <withinFiveYears>true</withinFiveYears>
+            <value>2026</value>
+        </yearOfInc>
+    </primaryIssuer>
+
+    <relatedPersonsList>
+        <relatedPersonInfo>
+            <relatedPersonName>
+                <firstName>Marshall</firstName>
+                <lastName>Sandman</lastName>
+            </relatedPersonName>
+            <relatedPersonAddress>
+                <street1>7101 Creedmoor Rd.</street1>
+                <street2>Ste. 142</street2>
+                <city>Raleigh</city>
+                <stateOrCountry>NC</stateOrCountry>
+                <stateOrCountryDescription>NORTH CAROLINA</stateOrCountryDescription>
+                <zipCode>27613</zipCode>
+            </relatedPersonAddress>
+            <relatedPersonRelationshipList>
+                <relationship>Executive Officer</relationship>
+            </relatedPersonRelationshipList>
+            <relationshipClarification>Managing member of Animal Capital GP III LLC; its GP</relationshipClarification>
+        </relatedPersonInfo>
+    </relatedPersonsList>
+
+    <offeringData>
+        <industryGroup>
+            <industryGroupType>Pooled Investment Fund</industryGroupType>
+            <investmentFundInfo>
+                <investmentFundType>Venture Capital Fund</investmentFundType>
+                <is40Act>false</is40Act>
+            </investmentFundInfo>
+        </industryGroup>
+        <issuerSize>
+            <revenueRange>Decline to Disclose</revenueRange>
+        </issuerSize>
+        <federalExemptionsExclusions>
+            <item>06b</item>
+            <item>3C</item>
+            <item>3C.1</item>
+        </federalExemptionsExclusions>
+        <typeOfFiling>
+            <newOrAmendment>
+                <isAmendment>true</isAmendment>
+                <previousAccessionNumber>0002144883-26-000001</previousAccessionNumber>
+            </newOrAmendment>
+            <dateOfFirstSale>
+                <value>2026-07-08</value>
+            </dateOfFirstSale>
+        </typeOfFiling>
+        <durationOfOffering>
+            <moreThanOneYear>false</moreThanOneYear>
+        </durationOfOffering>
+        <typesOfSecuritiesOffered>
+            <isPooledInvestmentFundType>true</isPooledInvestmentFundType>
+        </typesOfSecuritiesOffered>
+        <businessCombinationTransaction>
+            <isBusinessCombinationTransaction>false</isBusinessCombinationTransaction>
+            <clarificationOfResponse></clarificationOfResponse>
+        </businessCombinationTransaction>
+        <minimumInvestmentAccepted>0</minimumInvestmentAccepted>
+        <salesCompensationList></salesCompensationList>
+        <offeringSalesAmounts>
+            <totalOfferingAmount>50000000</totalOfferingAmount>
+            <totalAmountSold>29600000</totalAmountSold>
+            <totalRemaining>20400000</totalRemaining>
+            <clarificationOfResponse></clarificationOfResponse>
+        </offeringSalesAmounts>
+        <investors>
+            <hasNonAccreditedInvestors>false</hasNonAccreditedInvestors>
+            <totalNumberAlreadyInvested>85</totalNumberAlreadyInvested>
+        </investors>
+        <salesCommissionsFindersFees>
+            <salesCommissions>
+                <dollarAmount>0</dollarAmount>
+            </salesCommissions>
+            <findersFees>
+                <dollarAmount>0</dollarAmount>
+            </findersFees>
+            <clarificationOfResponse></clarificationOfResponse>
+        </salesCommissionsFindersFees>
+        <useOfProceeds>
+            <grossProceedsUsed>
+                <dollarAmount>0</dollarAmount>
+            </grossProceedsUsed>
+            <clarificationOfResponse></clarificationOfResponse>
+        </useOfProceeds>
+        <signatureBlock>
+            <authorizedRepresentative>false</authorizedRepresentative>
+            <signature>
+                <issuerName>ANIMAL CAPITAL FUND III LP</issuerName>
+                <signatureName>Marshall Sandman</signatureName>
+                <nameOfSigner>Marshall Sandman</nameOfSigner>
+                <signatureTitle>Managing member of Animal Capital GP III LLC; its GP</signatureTitle>
+                <signatureDate>2026-11-05</signatureDate>
+            </signature>
+        </signatureBlock>
+    </offeringData>
+</edgarSubmission>
+</XML>
+</TEXT>
+</DOCUMENT>
+</SEC-DOCUMENT>
