@@ -1,0 +1,43 @@
+# ETL and Worker tests on every push and pull request. Offline: no SEC requests, no Cloudflare account
+# (the Worker tests run the real Worker against a local D1 seeded from committed fixtures).
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          working-directory: etl
+      - name: pytest
+        working-directory: etl
+        run: uv run pytest
+
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - name: npm ci
+        working-directory: worker
+        run: npm ci
+      - name: typecheck
+        working-directory: worker
+        run: npm run typecheck
+      - name: npm test (tools + golden questions)
+        working-directory: worker
+        run: npm test

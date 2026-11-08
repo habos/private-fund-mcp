@@ -148,6 +148,11 @@ Used by `etl.incremental` for filings newer than the last quarterly data set (20
 - `testOrLive` = `TEST` filings are skipped (none seen).
 - **Volume:** a full run of 2026-11-05 read 262 filings and kept 98 (all unmatched first-time VC/PE notices in a scratch scope DB; ~half have SPV-like names), ≈ 390 D1 writes. Budget ≈ 400–500 writes per business day, so catching up from 2026-09-30 is ~15k writes.
 
+## 5b. EDGAR lookups used by the hand-check replay (verified 2026-11-08)
+
+- `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&filenum={021-…}&type=D&dateb=&owner=include&count=40&output=atom` returns an Atom feed: `<company-info>` with `<cik>` and `<conformed-name>`, then one `<entry>` per filing, newest first, each with `<accession-number>`, `<file-number>`, `<filing-date>` (YYYY-MM-DD) and `<filing-type>` (`D`, `D/A`). A number EDGAR knows but with no Form D (e.g. `021-84037`) gives a feed with company info and no entries.
+- `https://www.sec.gov/Archives/edgar/data/{cik}/{accession without dashes}/primary_doc.xml` is the Form D XML; Item 13 total amount sold is `offeringSalesAmounts/totalAmountSold` (same field as `FORMDSUBMISSION`/`OFFERING.TOTALAMOUNTSOLD` in the data sets). The `xslFormDX01/primary_doc.xml` path is the same document rendered as HTML for people.
+
 ## 6. Open questions for Harry
 1. Initial load is far above the 80,000 writes/day budget. See `reports/row_estimates.md` for options.
 2. ~~Funds with several Form D file numbers~~ Decided 2026-11-07: added the `fund_file_nos` table so no filings are dropped.

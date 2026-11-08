@@ -68,6 +68,7 @@ worker/                 # TypeScript Worker
 - `cd etl && uv run pytest`
 - `cd etl && uv run python -m etl.download` / `etl.transform` / `etl.export_sql` / `etl.load`
 - `cd etl && uv run python -m etl.report` (join report + hand-check CSV; needs `SEC_USER_AGENT` for the cached EDGAR lookups)
+- `cd etl && uv run python -m etl.handcheck_replay` (re-checks the 20 hand-check funds against raw ADV files and EDGAR; needs `SEC_USER_AGENT`)
 - `cd worker && npm test`
 - `cd worker && npx wrangler dev` (local, uses local D1)
 - `cd worker && npx wrangler deploy`

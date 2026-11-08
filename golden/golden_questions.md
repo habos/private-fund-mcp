@@ -1,0 +1,29 @@
+# Golden questions
+
+Ten questions a user might ask Claude with this connector, the tool call(s) Claude should make, and the answer the tools must support. `cd worker && npm test` replays every one against real data in a local D1 (`worker/test/golden.test.ts`); the expected values were read from `build/fund.db` and, where noted, checked against the filing itself on EDGAR.
+
+Data as of: Form D through **2026-09-30** (quarterly data sets), Form ADV filed through **2026-10-31** (12 monthly IAPD folders). Answers change when the data does; re-check them after a monthly ADV refresh.
+
+The five cases Prompt 6 asks for are Q1 (near-duplicate names), Q3 (feeders), Q4 (indefinite offering), Q5 (one state, one month) and Q6 (no Form D file number).
+
+| # | Question | Tool call(s) | Expected answer |
+|---|---|---|---|
+| 1 | "What's Uncork Capital's CRD?" | `resolve_manager {query: "Uncork Capital"}` | **Two different advisers**, both exempt reporting advisers in San Francisco: UNCORK CAPITAL, INC. (CRD 160391, 5 funds) and UNCORK CAPITAL MANAGEMENT LLC (CRD 308145, 6 funds). Claude should show both or ask which one, never merge them. |
+| 2 | "Which firm has CRD 156612?" | `resolve_manager {query: "156612"}` | WEATHERGAGE CAPITAL, LLC, a registered adviser (RIA) in Austin, TX, $1,362,954,590 regulatory AUM, 8 in-scope funds, Form ADV filed 2026-03-17. |
+| 3 | "How much do Ethereal Ventures' funds hold in total?" | `resolve_manager {query: "Ethereal Ventures"}` → `list_funds {crd: "322432"}` | **$139,114,000** gross asset value across 3 funds (Fund I $92.3M, Fund II $43.4M, Sorare $3.4M), 210 beneficial owners. The two feeders (I Feeder $48.9M, II Feeder $13.7M) are excluded because their assets sit in the master funds; adding them would count $62.6M twice. |
+| 4 | "How big is Eagle Venture Fund IV's offering?" | `fund_history {pfid: "805-6872391500"}` | No cap: both Form D filings give the offering size as **indefinite**. The original notice (2024-02-28) reported $0 sold; the D/A of 2025-03-03 reports **$5,115,000 sold to 20 investors**. Adviser: Eagle Capital International, LLC (CRD 299541). |
+| 5 | "Which new funds filed a Form D in Connecticut in August 2026?" | `new_launches {since: "2026-08-01", until: "2026-08-31", state: "CT"}`, following `next_cursor` (the state filter scans 200 launches per page) | **16 launches**, newest first from Ares Secondaries Acquisition Vehicle 29 BigCat LP (2026-08-27) to Ironwood Capital Partners VI SBIC LP (2026-08-04). Four are flagged likely SPVs (MIC01 and Builders-AS, both "a series of Get Access Master Partnership"; 2 Mile DK SPV LLC; Stork 2 SPV, L.P.). None is matched to a manager yet: no Form ADV in our data lists their file numbers, which is normal for funds launched after the adviser's last annual update. Example: Tamarack Global Impulse Space V, LP had sold $5,595,000 of a $10,000,000 VC offering. |
+| 6 | "Show me Standard Sapphire LP's Form D history." | `fund_history {pfid: "805-2376050040"}` | None can be shown: the adviser (Standard Capital Advisors L.P., CRD 165808) lists **no Form D file number** for this fund in Form ADV, so it can't be linked to Form D. Claude must say so rather than search Form D by name. |
+| 7 | "Who manages the fund with Form D file number 021-257645, and how much did it raise?" | `fund_history {form_d_file_no: "021-257645"}` | WEATHERGAGE VENTURE CAPITAL IV LP (PFID 805-2341511343, venture capital), managed by Weathergage Capital, LLC (CRD 156612). Original Form D 2016-02-17 ($0 sold of $200M); D/A 2017-02-17: **$190,325,000 sold of a $200,000,000 offering, 49 investors** (checked on EDGAR, accession 0001664470-17-000001). |
+| 8 | "How much has Coller International Partners IX raised?" | `resolve_manager {query: "Coller"}` → `list_funds {crd: "111035"}` → `fund_history {pfid: "805-3909445633"}` | The Form ADV fund lists **four Form D file numbers** (021-468009, 021-468015, 021-512841, 021-512844): parallel partnerships IX-A, IX-B, IX-E and IX-F, each filing its own Form D. The 2026-05-18 amendments of IX-A and IX-B each report **$11,284,206,649** sold (40 and 9 investors). Both report the same total, which looks like the whole program's figure, so Claude should not add them together. |
+| 9 | "List Third Lake Partners' venture capital funds." | `list_funds {crd: "299961", fund_type: "venture_capital"}` | 3 of the firm's 9 funds: Third Lake VC Fund I, II and III, **$64,166,307** gross asset value together, no feeders. |
+| 10 | "When did Bridgescale Opportunities IV last file a Form D?" | `fund_history {pfid: "805-4320106349"}` | The fund lists file number 021-84037, but there is **no Form D under it from 2008-01-01 to 2026-09-30**. EDGAR knows the number (Bridgescale Partners L P) but shows no Form D filings for it, so any filing predates electronic Form D data. Claude should say this, not report $0. |
+
+## Hand-check replay (20 funds)
+
+`golden/handcheck.csv` lists the 20 funds sampled for the hand-check (seed 2026: 10 with a Form D, 10 without). Harry spot-checked a few on IAPD and EDGAR on 2026-11-07. To cover all 20, `etl.handcheck_replay` re-reads each value from its source, without going through `etl.transform`:
+
+- **Gross asset value and Form D file number:** from the adviser's latest filing in the raw IAPD CSVs (Schedule D 7.B.(1) question 11; 7B1A22 question 22). This is the same filing IAPD shows, but it is the same download the ETL reads, so it checks our transform, not IAPD's website.
+- **Latest amount sold:** from EDGAR itself: the file number's filing list (newest first) and that filing's `primary_doc.xml` (Item 13, `totalAmountSold`).
+
+Result, 2026-11-08: **20/20 fully correct** (GAV 20/20, file number 20/20, amount sold 20/20). See `golden/handcheck_replay.csv`. The vitest suite then checks that the Worker returns those source values through `list_funds` and `fund_history`; it passes at ≥ 19/20, the SPEC target.
