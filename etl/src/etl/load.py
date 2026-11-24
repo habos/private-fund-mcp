@@ -67,21 +67,55 @@ def rows_written_from(output: str) -> int | None:
     return total if seen else None
 
 
+AUTH_ERROR_CODE = 10000  # Cloudflare "Authentication error"; seen once right after an OAuth token refresh
+
+
+def wrangler_error(stdout: str, stderr: str) -> tuple[str, int | None]:
+    """Readable error text and Cloudflare error code from a failed `wrangler ... --json` run.
+
+    With --json, wrangler prints the error as JSON on stdout; stderr holds only npm notices.
+    """
+    lines = stdout.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.strip() == "{" or l.lstrip().startswith('{"')), None)
+    if start is not None:
+        try:
+            err = json.loads("\n".join(lines[start:])).get("error") or {}
+            notes = [n.get("text", "") for n in err.get("notes") or [] if isinstance(n, dict)]
+            text = " | ".join(t for t in [err.get("text", "")] + notes if t)
+            if text:
+                return text, err.get("code") if isinstance(err.get("code"), int) else None
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    noise = ("npm notice", "npm warn")
+    rest = [l for l in (stderr + "\n" + stdout).splitlines() if l.strip() and not l.lower().startswith(noise)]
+    return "\n".join(rest[-40:]) or "(no output)", None
+
+
+def run_wrangler(cmd: list[str], what: str, retries: int = 1) -> str:
+    """Run a wrangler --json command; retry once on Cloudflare auth error 10000. Returns stdout."""
+    for attempt in range(retries + 1):
+        p = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True)
+        if p.returncode == 0:
+            return p.stdout
+        text, code = wrangler_error(p.stdout, p.stderr)
+        if code == AUTH_ERROR_CODE and attempt < retries:
+            # D1 rejects a failed import atomically, so retrying with the now-refreshed token is safe.
+            print(f"  {what}: auth error from Cloudflare, retrying once", file=sys.stderr)
+            continue
+        hint = "\n  If this persists, run `cd worker && npx wrangler login`." if code == AUTH_ERROR_CODE else ""
+        raise RuntimeError(f"wrangler failed on {what} (exit {p.returncode}): {text}{hint}")
+    raise AssertionError("unreachable")
+
+
 def wrangler_execute(sql_file: Path, target: str, db_name: str = DB_NAME) -> int | None:
     cmd = ["npx", "wrangler", "d1", "execute", db_name, f"--{target}", "--file", str(sql_file), "--json", "--yes"]
-    p = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True)
-    if p.returncode != 0:
-        raise RuntimeError(f"wrangler failed on {sql_file.name} (exit {p.returncode}):\n{p.stderr or p.stdout}")
-    return rows_written_from(p.stdout)
+    return rows_written_from(run_wrangler(cmd, sql_file.name))
 
 
 def wrangler_query(sql: str, target: str = "remote", db_name: str = DB_NAME) -> list[dict]:
     """Run one read query with `wrangler d1 execute --command` and return its result rows."""
     cmd = ["npx", "wrangler", "d1", "execute", db_name, f"--{target}", "--command", sql, "--json", "--yes"]
-    p = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True)
-    if p.returncode != 0:
-        raise RuntimeError(f"wrangler query failed (exit {p.returncode}):\n{p.stderr or p.stdout}")
-    return results_from(p.stdout)
+    return results_from(run_wrangler(cmd, "query"))
 
 
 def results_from(output: str) -> list[dict]:
