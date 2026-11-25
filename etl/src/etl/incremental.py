@@ -30,6 +30,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Callable, Iterable
 
+import httpx
+
 from etl.export_sql import fresh_dir, render_rows, write_chunks, write_manifest
 from etl.load import BUILD_DIR, DB_NAME, wrangler_query
 from etl.sec_client import RAW_DIR, SecClient
@@ -279,13 +281,20 @@ def run(
         # A filing with co-issuers is listed once per issuer CIK, under the same accession number.
         entries = list({Path(e["path"]).name: e for e in entries}.values())
         rows = []
-        for e in entries:
-            f = sec.download(EDGAR + e["path"], cache / "filings" / ymd / Path(e["path"]).name)
-            row = parse_submission(f.read_text(encoding="utf-8", errors="replace"))
-            if row is None:
-                stats["test_filings"] += 1
-                continue
-            rows.append(row)
+        try:
+            for e in entries:
+                f = sec.download(EDGAR + e["path"], cache / "filings" / ymd / Path(e["path"]).name)
+                row = parse_submission(f.read_text(encoding="utf-8", errors="replace"))
+                if row is None:
+                    stats["test_filings"] += 1
+                    continue
+                rows.append(row)
+        except httpx.HTTPError as err:
+            # SEC still failing after the client's retries: keep the days already done (their chunks
+            # are written and as_of stops before this day); the next run resumes here from the cache.
+            stats["stopped_at"] = {"day": day, "error": str(err)}
+            log(f"  {day}: stopped, SEC request failed after retries: {err}")
+            break
         matched = matching_file_nos(query, {r["file_no"] for r in rows if r["file_no"]})
         kept = [r for r in rows if in_scope(r, matched)]
         stats["days"] += 1
@@ -326,6 +335,11 @@ def main(argv: list[str] | None = None) -> None:
     with SecClient() as sec:
         m = run(sec, query, as_of, args.out, dt.datetime.now(dt.timezone.utc).date(), args.max_days)
     s = m["stats"]
+    if s.get("stopped_at"):
+        stop = s["stopped_at"]
+        print(f"::warning::stopped at {stop['day']} (SEC error after retries: {stop['error']}); the next run resumes there")
+        if not m["chunks"]:
+            sys.exit(1)  # nothing done at all: show the run as failed
     print()
     print(f"as_of_form_d      {m['as_of_before']} -> {m['as_of_after']}  ({s['days']} EDGAR days)")
     print(f"Form D filings    {s['filings']:,} read, {s['kept']:,} in scope ({s['matched']:,} matched to a fund, {s['launches']:,} unmatched VC/PE launches)")
