@@ -3,7 +3,9 @@
 //
 // Default data: test/fixtures/golden_seed.sql, the slice of build/fund.db these calls read (committed, so CI
 // needs no fund.db). With GOLDEN_SQL_DIR=../build/sql (etl.export_sql output) the same assertions run against
-// a local D1 holding all of fund.db.
+// a local D1 holding all of fund.db. With GOLDEN_URL=https://…workers.dev they run over HTTP against the
+// deployed Worker instead (MCP tools/call, one request at a time, ≥ 250 ms apart). That mode only runs when
+// GOLDEN_URL is set by hand, never in CI: `GOLDEN_URL=https://… npx vitest run test/golden.test.ts`.
 import { readdirSync, readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Db } from "../src/lib/db";
@@ -17,7 +19,9 @@ import type { ToolDef } from "../src/tools/types";
 import { start, type Ctx } from "./harness";
 
 const fullDir = process.env.GOLDEN_SQL_DIR;
+const liveUrl = process.env.GOLDEN_URL?.replace(/\/+$/, "");
 const AS_OF = { form_d: "2026-09-30", form_adv: "2026-10-31" };
+const LIVE_GAP_MS = 250; // at most 4 requests per second against production
 
 function seed(): string[] {
   if (!fullDir) return [readFileSync(new URL("./fixtures/golden_seed.sql", import.meta.url), "utf8")];
@@ -31,15 +35,48 @@ function seed(): string[] {
 let ctx: Ctx;
 const budget = { maxRowsRead: 0, calls: 0 };
 beforeAll(async () => {
-  ctx = await start(seed());
+  if (!liveUrl) ctx = await start(seed());
 }, 600_000);
 afterAll(async () => {
-  console.log(`golden (${fullDir ? `full fund.db from ${fullDir}` : "golden_seed.sql"}): ${budget.calls} tool calls, largest rows_read ${budget.maxRowsRead}`);
+  const src = liveUrl ? `production ${liveUrl}` : fullDir ? `full fund.db from ${fullDir}` : "golden_seed.sql";
+  console.log(`golden (${src}): ${budget.calls} tool calls${liveUrl ? "" : `, largest rows_read ${budget.maxRowsRead}`}`);
   await ctx?.server.close();
 });
 
+let lastLive = 0;
+/** tools/call on the deployed Worker; returns the parsed envelope from the text content. */
+async function callLive(name: string, input: unknown): Promise<any> {
+  const wait = lastLive + LIVE_GAP_MS - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastLive = Date.now();
+  const res = await fetch(`${liveUrl}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: budget.calls + 1, method: "tools/call", params: { name, arguments: input } }),
+  });
+  const body = await res.text();
+  expect(res.status, body.slice(0, 300)).toBe(200);
+  // The stateless handler answers as JSON or as one SSE `data:` event.
+  const json = body.trimStart().startsWith("{")
+    ? body
+    : body.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5)).join("");
+  const msg = JSON.parse(json);
+  expect(msg.error, JSON.stringify(msg.error)).toBeUndefined();
+  expect(msg.result.isError, msg.result.content?.[0]?.text).toBeFalsy();
+  return JSON.parse(msg.result.content[0].text);
+}
+
 /** Run a tool like the MCP SDK does, enforcing the envelope and the per-query read budget. */
 async function call(tool: ToolDef<any>, input: unknown): Promise<any> {
+  if (liveUrl) {
+    const out = await callLive(tool.name, input);
+    budget.calls++;
+    expect(out.disclaimer).toBe(DISCLAIMER);
+    expect(out.as_of.form_adv).toBe(AS_OF.form_adv);
+    // The nightly job moves form_d forward; answers that differ only because of later filings are reported, not failed.
+    expect(out.as_of.form_d >= AS_OF.form_d, out.as_of.form_d).toBe(true);
+    return out;
+  }
   const db: Db = ctx.db();
   const out = await tool.run(db, tool.inputSchema.parse(input));
   budget.calls++;
@@ -290,5 +327,5 @@ describe("hand-check replay (golden/handcheck_replay.csv, 20 funds)", () => {
     }
     console.log(`hand-check replay: ${replay.length - wrong.length}/${replay.length} fully correct${wrong.length ? `\n  ${wrong.join("\n  ")}` : ""}`);
     expect(replay.length - wrong.length, wrong.join("\n")).toBeGreaterThanOrEqual(19);
-  }, 60_000);
+  }, 120_000);
 });

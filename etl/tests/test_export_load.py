@@ -225,3 +225,37 @@ def test_diff_export_touches_only_changed_rows(fund_db, tmp_path):
     assert d1.execute("SELECT count(*) FROM formd_offerings").fetchone()[0] == 5
     meta = dict(d1.execute("SELECT key, value FROM meta"))
     assert meta["as_of_form_d"] == "2026-11-05" and meta["as_of_form_adv"] == "2026-11-30"
+
+
+def test_wrangler_error_reads_json_error_from_stdout():
+    stdout = (
+        "\n{\n  \"error\": {\n    \"text\": \"A request to the Cloudflare API (/import) failed.\",\n"
+        "    \"notes\": [{\"text\": \"Authentication error [code: 10000]\"}],\n"
+        "    \"kind\": \"error\", \"name\": \"APIError\", \"code\": 10000\n  }\n}\n"
+    )
+    text, code = L.wrangler_error(stdout, "npm notice run npx\nnpm notice run 'wrangler' d1\n")
+    assert code == 10000
+    assert "Authentication error [code: 10000]" in text and "/import" in text
+    assert "npm notice" not in text
+
+
+def test_wrangler_error_falls_back_to_plain_output_without_npm_noise():
+    text, code = L.wrangler_error("", "npm notice run npx\n✘ [ERROR] near \"FOO\": syntax error\n")
+    assert code is None
+    assert text == "✘ [ERROR] near \"FOO\": syntax error"
+
+
+def test_run_wrangler_retries_once_on_auth_error(monkeypatch):
+    auth = "{\"error\": {\"text\": \"failed\", \"code\": 10000}}"
+    results = iter([(1, auth), (0, "[{\"results\": [], \"meta\": {\"rows_written\": 3}}]")])
+
+    class P:
+        def __init__(self, rc, out):
+            self.returncode, self.stdout, self.stderr = rc, out, ""
+
+    monkeypatch.setattr(L.subprocess, "run", lambda *a, **k: P(*next(results)))
+    assert L.wrangler_execute(Path("x.sql"), "remote") == 3
+
+    monkeypatch.setattr(L.subprocess, "run", lambda *a, **k: P(1, auth))
+    with pytest.raises(RuntimeError, match="wrangler login"):
+        L.wrangler_execute(Path("x.sql"), "remote")

@@ -16,11 +16,10 @@ Both filings are public, but they live in different SEC systems and nobody joins
 2. Paste the server URL:
 
    ```
-   https://private-fund-mcp.<subdomain>.workers.dev/mcp
+   https://private-fund-mcp.harry-andrzej-bos.workers.dev/mcp
    ```
 
-   <!-- TODO after `wrangler deploy`: replace with the deployed URL. -->
-   The public URL goes here once the Worker is deployed (after the initial data load finishes, see [Operations](#operations)). No sign-in is needed: every tool is read-only.
+   No sign-in is needed: every tool is read-only.
 3. Start a new chat and ask, for example:
    - *"What funds does Weathergage Capital manage, and what are they worth in total?"*
    - *"Which new venture capital funds filed a Form D in Connecticut in August 2026? Who's behind them?"*
@@ -84,7 +83,7 @@ The Cloudflare account is on the Workers Free plan, so going over a limit is ref
 - [Form D data sets](https://www.sec.gov/dera/data/form-d) (SEC, quarterly, every quarter since 2008), then the [EDGAR daily index](https://www.sec.gov/Archives/edgar/daily-index/) for filings after the latest quarter.
 - Form ADV "ADV Filing Data" monthly files from [IAPD](https://adviserinfo.sec.gov/adv): 12 consecutive months, using each adviser's latest filing (Schedule D Section 7.B.(1)).
 
-**As of** (every tool response carries its own `as_of`): the current build has Form D through **2026-09-30** and Form ADV filed through **2026-10-31**. The nightly job moves the Form D date forward daily once the Worker is live.
+**As of** (every tool response carries its own `as_of`): the current build has Form D through **2026-09-30** and Form ADV filed through **2026-10-31**. The Worker went live on 2026-11-24; since then the nightly job moves the Form D date forward from EDGAR (check `/health`).
 
 **Limitations**
 
@@ -125,6 +124,9 @@ npm run seed:local && npx wrangler dev # local MCP server at http://localhost:87
 
 # Golden questions against a local D1 holding all of build/fund.db
 GOLDEN_SQL_DIR=../build/sql npx vitest run test/golden.test.ts
+
+# Golden questions against the deployed Worker (by hand only, never in CI; ≤ 4 requests/second)
+GOLDEN_URL=https://private-fund-mcp.harry-andrzej-bos.workers.dev npx vitest run test/golden.test.ts
 ```
 
 After a rebuild, refresh the committed golden fixture with `cd etl && uv run python ../worker/test/fixtures/make_golden_seed.py`. To poke at the server by hand, run `npx @modelcontextprotocol/inspector` and point it at `http://localhost:8787/mcp`.
@@ -187,7 +189,7 @@ Needs `npx wrangler login` once, and a Cloudflare account on the **Workers Free*
 
 ```sh
 cd worker && npm ci && npx wrangler deploy
-curl https://private-fund-mcp.<subdomain>.workers.dev/health    # {"ok":true,"as_of_form_d":"…"}
+curl https://private-fund-mcp.harry-andrzej-bos.workers.dev/health    # {"ok":true,"as_of_form_d":"…"}
 ```
 
 Then put the `/mcp` URL in [Use it in Claude](#use-it-in-claude).
