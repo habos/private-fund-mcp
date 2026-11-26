@@ -51,3 +51,4 @@ One line per decision: date — decision — why.
 - 2026-11-24 — Golden set against production via `GOLDEN_URL` (opt-in env var, sequential, ≤ 4 req/s, `as_of.form_d` may move forward): 12/12 pass, hand-check 20/20 — reuses the existing vitest suite, no new dependency.
 - 2026-11-25 — `etl.incremental` stops at the first day whose SEC download still fails after the client's retries and keeps the days already done (as_of stops before it); it exits non-zero only if no day was done — nightly run 18 lost 15 finished days to one 504 on a filing.
 - 2026-11-25 — CI pins Python 3.12 in `setup-uv` — the runners had moved to 3.14, and CLAUDE.md's stack is 3.12.
+- 2026-11-26 — Cloudflare account confirmed on the Workers Free plan (Harry, dashboard) — the $0/month rule; going over a limit is refused, not billed.
