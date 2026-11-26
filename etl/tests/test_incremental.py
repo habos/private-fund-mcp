@@ -209,3 +209,22 @@ def test_co_issuer_filing_listed_twice_is_read_once(scope_db, tmp_path):
               cache=tmp_path / "cache", log=lambda _: None)
     assert m["stats"]["filings"] == 2
     assert sum(u.endswith("0002144883-26-000003.txt") for u in sec.urls) == 1
+
+
+def test_sec_outage_keeps_completed_days(scope_db, tmp_path):
+    """Run 18 (2026-11-24) died on one 504 after retries and threw away 15 finished days."""
+    import httpx
+
+    class FlakySec(FakeSec):
+        def download(self, url, dest):
+            if url.endswith("0002144883-26-000003.txt"):
+                raise httpx.HTTPStatusError("504 Gateway Time-out", request=httpx.Request("GET", url),
+                                            response=httpx.Response(504))
+            return super().download(url, dest)
+
+    sec = FlakySec(["2026-11-04", "2026-11-05"])
+    m = I.run(sec, I.sqlite_query(scope_db), "2026-11-03", tmp_path / "out", today=dt.date(2026, 11, 6),
+              cache=tmp_path / "cache", log=lambda _: None)
+    assert m["as_of_after"] == "2026-11-04"  # 11-05 had the failing filing: not advanced past it
+    assert [c["file"] for c in m["chunks"]] == ["0001_formd_offerings_20261104.sql"]
+    assert m["stats"]["stopped_at"]["day"] == "2026-11-05"
